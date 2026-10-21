@@ -1,14 +1,14 @@
 # Wording rules
 
-Rules for words, phrases, sentences, formatting, and tone. Each rule has a bad
-and a good example. Apply them to chat answers, documentation, comments, and
+Rules for words, phrases, sentences, formatting, and tone, each with a bad and
+a good example. They apply to chat answers, documentation, comments, and
 commit messages.
 
 ## Contents
 
 - [Words](#words)
 - [Phrases to delete](#phrases-to-delete)
-- [Sentence patterns](#sentence-patterns)
+- [Sentences](#sentences)
 - [Formatting](#formatting)
 - [Tone](#tone)
 
@@ -30,7 +30,7 @@ stand in for.
 | showcase, highlight, underscore | show |
 | streamline | say which step goes away |
 | robust, powerful, seamless | say what it handles or what is automatic |
-| crucial, pivotal, vital, key | cut, or state the consequence |
+| crucial, pivotal, vital, key, groundbreaking, revolutionary | cut, or state the consequence |
 | comprehensive | say what it covers |
 | a wide range of, various, numerous | name them, or give the number |
 | functionality, capabilities | feature, or name it |
@@ -38,7 +38,7 @@ stand in for.
 | prior to, subsequent to | before, after |
 | in the event that | if |
 | at this point in time | now |
-| perform the installation, make a decision | install, decide |
+| simply, just, obviously, easily | cut: if the reader finds it hard, these words make them feel slow |
 
 Bad:
 
@@ -57,10 +57,11 @@ These carry no information. Delete them and start with the content.
 | Kind | Examples |
 | --- | --- |
 | Openers | "Great question!", "Certainly!", "Sure, here is...", "Let's dive in", "In this section, we will..." |
+| Restating the question | "You're asking why the lag...", "So the question is..." |
 | Signposts | "It's important to note that", "It's worth mentioning", "Keep in mind that", "Here's the thing" |
 | Restating | "As mentioned above", "In other words", "To put it simply", "Essentially" |
 | Closers | "In summary", "In conclusion", "Overall", "I hope this helps", "Happy coding!" |
-| Empty offers | "Let me know if you have any questions" (offer a next step only when there is a specific one) |
+| Empty offers | "Let me know if you have any questions", "Feel free to ask" |
 
 Bad:
 
@@ -71,90 +72,115 @@ Good:
 
 > Restarting clears the cache.
 
-## Sentence patterns
+## Sentences
 
-**Plain "is" and "has".**
+### Connect ideas instead of chaining or chopping them
 
-- Bad: "The `config` directory serves as the central location for settings."
-- Good: "Settings live in `config/`."
+Say how one idea leads to the next with "because", "so", "but", "until", or
+"which means". The reader should not have to guess the link between two
+sentences.
 
-**No "not X, but Y" framing** unless you are correcting a real
-misconception the reader has.
+- Bad (chopped): "The cache is full. Requests slow down. The app times out."
+- Good: "When the cache is full, requests slow down until the app times out."
 
-- Bad: "It's not just a linter, it's a complete code quality platform."
-- Good: "It lints and formats Python code."
+Split a sentence when it chains three or more clauses, or when the reader has
+to hold its start in mind to understand its end.
 
-**No importance tails.** A trailing "-ing" clause that claims significance
-adds nothing.
+- Bad (chained): "The worker reads the queue, which is partitioned by tenant,
+  and writes results to S3 while also updating the status table, which the
+  UI polls."
+- Good: "The worker reads the queue, which is partitioned by tenant. It
+  writes results to S3 and updates the status table, which the UI polls."
 
-- Bad: "Version 2 adds streaming, highlighting the team's commitment to
-  performance."
-- Good: "Version 2 adds streaming, which cuts memory use for large files."
-
-**One hedge at most.**
-
-- Bad: "This might potentially cause some issues in certain cases."
-- Good: "This fails when the file is larger than 2 GB."
-
-**Name the actor.** Passive voice hides who does what.
-
-- Bad: "Errors are handled and retries are performed."
-- Good: "The client retries a failed request three times, then raises
-  `TimeoutError`."
-
-**Name the source.** Vague attribution is not evidence.
-
-- Bad: "Experts recommend rotating keys regularly."
-- Good: "The AWS security guide recommends rotating access keys every 90
-  days."
-
-**List what exists.** Do not pad to three items or trim to three.
-
-- Bad: "It is fast, reliable, and scalable."
-- Good: "It handles 10,000 requests per second on one core."
-
-**No rhetorical questions or reveal colons.**
-
-- Bad: "The result? A 40% faster build."
-- Good: "The build is 40% faster."
-
-**Verbs, not nouns.**
+### Verbs, not nouns
 
 - Bad: "Perform the configuration of the proxy prior to the execution of the
   tests."
 - Good: "Configure the proxy before running the tests."
 
-**One idea per sentence.** If a sentence has more than one "and", "which", or
-"while", split it.
+### Name the actor
 
-- Bad: "The worker reads the queue, which is partitioned by tenant, and
-  writes results to S3 while also updating the status table, which the UI
-  polls."
-- Good: "The worker reads the queue, which is partitioned by tenant. It
-  writes results to S3 and updates the status table. The UI polls that
-  table."
+Passive voice hides who does what.
+
+- Bad: "Errors are handled and retries are performed."
+- Good: "The client retries a failed request three times, then raises
+  `TimeoutError`."
+
+### "You", in the present tense
+
+Write instructions to the reader as "you" or as plain commands, and describe
+behavior in the present tense.
+
+- Bad: "The user will need to run `make`, which will then generate the
+  files."
+- Good: "Run `make`. It writes the files to `dist/`."
+
+### One hedge at most
+
+Hedge only when the uncertainty is real, and then once.
+
+- Bad: "This might potentially cause some issues in certain cases."
+- Good: "This fails when the file is larger than 2 GB."
+
+### No "not X, but Y" framing
+
+Use it only to correct a misconception the reader actually has.
+
+- Bad: "It's not just a linter, it's a complete code quality platform."
+- Good: "It lints and formats Python code."
+
+### No importance tails
+
+A trailing "-ing" clause that claims significance adds nothing. State the
+effect instead.
+
+- Bad: "Version 2 adds streaming, highlighting the team's commitment to
+  performance."
+- Good: "Version 2 adds streaming, which cuts memory use for large files."
+
+### Name the source
+
+Vague attribution is not evidence.
+
+- Bad: "Experts recommend rotating keys regularly."
+- Good: "The AWS security guide recommends rotating access keys every 90
+  days."
+
+### List what exists
+
+Do not pad a list to three items or trim it to three.
+
+- Bad: "It is fast, reliable, and scalable."
+- Good: "It handles 10,000 requests per second on one core."
+
+### No rhetorical questions or reveal colons
+
+- Bad: "The result? A 40% faster build."
+- Good: "The build is 40% faster."
 
 ## Formatting
 
-**No em dashes.** Use a period, comma, colon, or parentheses.
+### No em dashes
+
+Use a period, comma, colon, or parentheses.
 
 - Bad: "The command is idempotent — running it twice is safe."
 - Good: "The command is idempotent: running it twice is safe."
 
-**Bold sparingly.** At most one phrase per section, for something the reader
-must not miss, such as a destructive action.
+### Bold at most one phrase per section
+
+Save it for something the reader must not miss, such as a destructive
+action. Bold labels at the start of every bullet or list item count as bold
+on every item.
 
 - Bad: "Run **`make build`** to **compile** the **project** before **testing**."
 - Good: "Run `make build` before the tests. **It deletes `dist/` first.**"
-
-**No bold labels on every bullet.**
 
 Bad:
 
 ```markdown
 - **Speed:** It is fast.
 - **Safety:** It is safe.
-- **Simplicity:** It is simple.
 ```
 
 Good:
@@ -164,38 +190,53 @@ Good:
 - Refuses to overwrite files outside the output directory.
 ```
 
-**Headings in sentence case, no emoji.**
+### Headings
+
+Use sentence case and no emoji. Add a heading only when the section has real
+content: do not give each paragraph its own heading, and do not skip levels
+(`##` to `####`).
 
 - Bad: "## 🚀 Getting Started With The CLI"
 - Good: "## Get started"
 
-**A heading only when the section has real content.** Do not give each
-paragraph its own heading, and do not skip levels (`##` to `####`).
+### Tables only for three or more rows
 
-**Tables only for three or more rows** compared on the same columns. Two items
-read better as a sentence.
+Rows must compare items on the same columns. Two items read better as a
+sentence.
 
-**Code in backticks.** Commands, file names, flags, keys, and values go in
-`code` so the reader can tell them from prose.
+### Code in backticks
 
-**No horizontal rules between sections.** Headings already separate them.
+Commands, file names, flags, keys, and values go in `code` so the reader can
+tell them from prose.
+
+### No horizontal rules between sections
+
+Headings already separate them.
 
 ## Tone
 
-**State facts, do not promote.**
-
-- Bad: "This groundbreaking feature revolutionizes how you manage configs."
-- Good: "You can now reload the config without restarting."
-
-**No flattery or agreement filler.**
+### No flattery or agreement filler
 
 - Bad: "You're absolutely right! That's a great point."
 - Good: "Yes, the timeout is too short. Raise it to 30 seconds."
 
-**No exclamation marks** in documentation or technical answers.
+### No exclamation marks
 
-**Say when you do not know.** One sentence, then what would find out.
+They do not belong in documentation or technical answers.
+
+### Say when you do not know
+
+One sentence, then what would find out.
 
 - Bad: "This could be due to a variety of factors."
 - Good: "I can't tell from this log. Run it with `--verbose` and send the
   lines around the error."
+
+### End with a specific next step, or stop
+
+A closing line earns its place only when it tells the reader what to do or
+check next.
+
+- Bad: "Let me know if you have any other questions!"
+- Good: "If the lag still grows after offset 2,200, check how long each poll
+  takes against `max.poll.interval.ms`."
