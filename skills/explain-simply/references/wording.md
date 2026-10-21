@@ -1,7 +1,7 @@
 # Wording rules
 
-Rules for words, phrases, sentences, formatting, and tone, each with a bad and
-a good example. They apply to chat answers, documentation, comments, and
+Rules for words, phrases, sentences, formatting, and tone, most with a bad
+and a good example. They apply to chat answers, documentation, comments, and
 commit messages.
 
 ## Contents
@@ -30,7 +30,7 @@ stand in for.
 | showcase, highlight, underscore | show |
 | streamline | say which step goes away |
 | robust, powerful, seamless | say what it handles or what is automatic |
-| crucial, pivotal, vital, key, groundbreaking, revolutionary | cut, or state the consequence |
+| crucial, pivotal, vital, groundbreaking, revolutionary, key (as in "a key feature", not a config key) | cut, or state the consequence |
 | comprehensive | say what it covers |
 | a wide range of, various, numerous | name them, or give the number |
 | functionality, capabilities | feature, or name it |
@@ -199,30 +199,21 @@ content: do not give each paragraph its own heading, and do not skip levels
 - Bad: "## 🚀 Getting Started With The CLI"
 - Good: "## Get started"
 
-### Tables only for three or more rows
+### Tables, code, and separators
 
-Rows must compare items on the same columns. Two items read better as a
-sentence.
-
-### Code in backticks
-
-Commands, file names, flags, keys, and values go in `code` so the reader can
-tell them from prose.
-
-### No horizontal rules between sections
-
-Headings already separate them.
+- Use a table only for three or more rows that compare items on the same
+  columns. Two items read better as a sentence.
+- Put commands, file names, flags, keys, and values in `code`, so the reader
+  can tell them from prose.
+- Do not put horizontal rules between sections. Headings already separate
+  them.
 
 ## Tone
 
-### No flattery or agreement filler
+### No flattery, agreement filler, or exclamation marks
 
 - Bad: "You're absolutely right! That's a great point."
 - Good: "Yes, the timeout is too short. Raise it to 30 seconds."
-
-### No exclamation marks
-
-They do not belong in documentation or technical answers.
 
 ### Say when you do not know
 

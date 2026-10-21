@@ -24,7 +24,7 @@ repository.
 Two reference files hold the details:
 
 - [references/wording.md](references/wording.md): words, phrases, sentences,
-  formatting, and tone, each rule with a bad and a good example. Read it
+  formatting, and tone, most with a bad and a good example. Read it
   before you write. It applies to every answer and every file.
 - [references/documentation.md](references/documentation.md): which file owns
   which fact, how to link instead of repeating, how to find duplication and
@@ -56,8 +56,8 @@ Then write for that reader:
 
 Simple does not mean less.
 
-A fact here means every number, default, limit, flag, version, path, error
-condition, and exception. When you rewrite, shorten, or summarize existing
+A fact here includes every number, default, limit, command, flag, config
+key, version, path, error condition, and exception. When you rewrite, shorten, or summarize existing
 text, every fact in it stays. Shorten by removing repetition, filler, and
 inflated words. If a fact does not belong where you are writing, move it to
 where it belongs and link to it.
@@ -102,15 +102,16 @@ Keep related facts together: one topic per paragraph or section.
 | Several items compared on the same attributes | Table |
 | Commands, code, config, output | Code block with a language tag |
 
-Do not break reasoning into bullet fragments or into a string of short,
-unconnected sentences. Both hide how the ideas depend on each other. Words
-such as "because", "so", "but", and "until" carry the reasoning.
+Do not break reasoning into bullet fragments. A list hides how the ideas
+depend on each other. The same goes for a string of short, unconnected
+sentences; see [Connect ideas](references/wording.md#connect-ideas-instead-of-chaining-or-chopping-them).
 
 ## Explaining something
 
 1. Answer in one plain sentence: what it is, or what went wrong.
 2. Give one concrete example from the user's context, with real values: their
-   code, their error, their numbers.
+   code, their error, their numbers. If they gave none, use realistic values
+   that fit their setup.
 3. Walk through the example: what goes in, what happens, what comes out.
 4. Name the general idea last, with its technical term.
 5. Add one caveat, only if the example could plant a wrong idea.
@@ -151,8 +152,8 @@ Answer first, then the example:
 
 Both versions use the same terms (`offset`, `committed offset`, `lag`). The
 second one answers first, shows the numbers before naming them, and connects
-the steps with "because" and "so". It also tells the user why the number
-does not move, which is what they asked.
+the steps with "because" and "so". It also tells the user why the lag does
+not go down, which is what they asked.
 
 ## Checks before sending
 
