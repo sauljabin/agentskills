@@ -21,7 +21,7 @@ compatibility: >-
   scripts/check_doc.py needs Python 3.9 or newer, standard library only.
 metadata:
   author: sauljabin
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Architecture design

@@ -270,6 +270,11 @@ def check(path: Path, sync: bool) -> int:
         err(line, 'code block without class="language-..." (use language-text for plain text)')
 
     # Diagrams
+    for m in re.finditer(r'<pre\b[^>]*\bclass="[^"]*\bmermaid\b[^"]*"[^>]*>\s*(\S+)', html):
+        if m.group(1) != "sequenceDiagram":
+            err(html.count("\n", 0, m.start()) + 1,
+                f'Mermaid "{m.group(1)}": use Mermaid only for sequenceDiagram; draw architecture, '
+                "decision trees, and state machines as box diagrams (references/diagrams.md)")
     for tag, line in doc.tags_in_mermaid:
         err(line, f"<{tag}> inside Mermaid source is read as HTML and disappears; write it escaped, for example &lt;br/&gt;")
     for fig in doc.figures:

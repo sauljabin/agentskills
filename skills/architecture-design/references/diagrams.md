@@ -3,31 +3,38 @@
 Diagrams carry the design; text fills in what they can't show. The template
 has two kinds:
 
-| Kind | Use for | Why |
-| --- | --- | --- |
-| Box diagram (`figure.dg`) | Architecture: components, where they run, who owns them, what flows between them, where failures start | You choose the layout, it matches the page's look, boxes and arrows have tooltips, and steps can highlight parts of it |
-| Mermaid (`figure.mmd`) | Interactions over time (sequence), states, data models (ER), timelines | Mermaid lays these out better than a grid can |
+| Kind | Use for |
+| --- | --- |
+| Box diagram (`figure.dg`) | Everything except sequences: architecture, failure maps, rollout states, decision trees, and state machines |
+| Mermaid (`figure.mmd`) | Sequence diagrams only: who calls whom, in what order |
+
+Box diagrams put each box where you choose, match the page's look, and have
+tooltips, linked badges, and highlighted steps. Mermaid lays out its own
+diagrams, which works well for sequences but produces tangled decision
+trees and state machines, so `check_doc.py` rejects any other Mermaid type.
+For a data model, use a table or the schema itself in a code block.
 
 ## Contents
 
 - [Rules for every diagram](#rules-for-every-diagram)
 - [Box diagrams](#box-diagrams)
+- [Decision trees](#decision-trees)
+- [State machines](#state-machines)
 - [Walkthroughs](#walkthroughs)
 - [Layout tips](#layout-tips)
-- [Mermaid](#mermaid)
+- [Sequence diagrams with Mermaid](#sequence-diagrams-with-mermaid)
 
 ## Rules for every diagram
 
-- **One idea per diagram.** The big picture, one flow, or one failure view.
-  More than about 12 boxes means two ideas; split them.
+- **One idea per diagram.** The big picture, one flow, one decision, or one
+  failure view. More than about 12 boxes means two ideas; split them.
 - **Real names.** A box's title is the name the team uses for the component
   (`Orders API`, `orders.events.v1`), the same in every diagram and
   sentence. Its subtitle is its role, in a few words.
-- **Label what flows.** An arrow's label is the protocol or the data
-  (`HTTPS`, `WAL`, `publish`), not a verb like "calls".
-- **Color means one thing.** The kind of a box (new, changed, existing,
-  external, resource, removed) sets its color, and the legend explains it.
-  Never color for decoration.
+- **Label what flows.** An arrow's label is the protocol, the data, or the
+  condition (`HTTPS`, `WAL`, `yes`), not a verb like "calls".
+- **Color means one thing.** The kind of a box sets its color, and the
+  legend explains it. Never color for decoration.
 - **Details on hover.** Versions, ports, counts, and config keys go in
   `data-tip`, not in the box. A box has at most three short lines.
 - **A caption that says what to notice.** One or two sentences: "Requests
@@ -82,14 +89,29 @@ with a `<strong>` title and an optional `<span>` subtitle.
 | `data-tip` | Tooltip text |
 | `data-refs` | Space-separated IDs, such as `D1 F2`, shown as linked badges on the box's corner |
 
+Kinds for architecture diagrams:
+
 | Kind | Color | Use for |
 | --- | --- | --- |
 | `new` | Green | Added by this design |
 | `changed` | Green, dashed border | Exists and this design changes it |
-| (none) | Blue | Exists and does not change |
+| (none) | Blue | Exists and does not change; also a plain state in a state machine |
 | `external` | Gray | Outside the team's control: clients, cloud services, other companies |
 | `resource` | Purple | Configuration or data rather than a running process: a topic, a table, a Kubernetes resource |
 | `removed` | Red, dashed, crossed out | Removed by this design |
+
+Kinds for decision trees, state machines, and annotations:
+
+| Kind | Looks like | Use for |
+| --- | --- | --- |
+| `decision` | White with a blue border | A yes-or-no check in a decision tree |
+| `good` | Green | A successful outcome, or a healthy state |
+| `bad` | Red | A failed or rejected outcome, or a failure state |
+| `note` | Amber sticky note | A remark attached to a box with an arrow that has `data-dir="none"` |
+| `start` | Filled dot, no text | Where a state machine begins |
+| `end` | Dot in a ring, no text | Where a state machine ends |
+
+`decision`, `note`, `start`, and `end` never appear in the legend.
 
 ### Arrows
 
@@ -101,14 +123,23 @@ canvas after the nodes.
 | `dashed` (class) | Dashed line; by default "asynchronous or control flow" in the legend |
 | `data-label` | Short text on the arrow |
 | `data-tip` | Tooltip on the arrow and its label |
-| `data-dir="both"` | Arrowheads on both ends |
+| `data-dir` | `both` for arrowheads on both ends, `none` for a plain line, such as a line to a note |
 | `data-route` | `auto` (default), `straight`, `elbow` (horizontal, then vertical), or `elbow-v` (vertical, then horizontal) |
 | `data-offset` | Shift the line sideways, in pixels, to separate two arrows between the same boxes |
+| `data-side` | For an arrow from a box to itself: `right` (default), `left`, `top`, or `bottom` |
 | `data-label-at="center"` | Put the label on the line instead of beside it |
 
 With `auto`, boxes in the same row or column are joined by a straight
 horizontal or vertical line, and other pairs by a diagonal line. Labels on
 horizontal lines sit above the line, labels on vertical lines to its right.
+
+For two arrows in opposite directions between the same boxes, give one
+`data-offset="-12"` and the other `data-offset="12"`. Each label then moves
+to its own side: above and below a horizontal pair, left and right of a
+vertical pair.
+
+An arrow whose `data-from` and `data-to` are the same box draws a loop on
+the side named by `data-side`, with its label past the loop.
 
 ### Groups
 
@@ -134,6 +165,59 @@ and dashed lines, with `data-legend` on the figure:
 
 Keys are the node kinds and `solid` or `dashed`. `data-legend="none"`
 hides the legend.
+
+## Decision trees
+
+Put the checks in the middle column, one per row, so the path that
+succeeds runs straight down. Put each outcome beside its check: on the left
+or the right, never below another check. A check can have up to three exits
+this way: left, right, and down.
+
+```html
+<figure class="dg" id="fig-billing-checks" data-legend="good=Handled; bad=Sent to the dead-letter topic">
+  <div class="dg-canvas" style="--dg-cols: 3; --dg-row-gap: 48px">
+    <div class="dg-node good" data-id="skip" style="--r: 1; --c: 1"><strong>Skip</strong><span>already processed</span></div>
+    <div class="dg-node decision" data-id="seen" style="--r: 1; --c: 2"><strong>1 · event_id seen before?</strong></div>
+    <div class="dg-node decision" data-id="version" style="--r: 2; --c: 2"><strong>2 · schema_version known?</strong></div>
+    <div class="dg-node bad" data-id="dlq" style="--r: 2; --c: 3"><strong>Dead-letter topic</strong></div>
+    <div class="dg-node good" data-id="invoice" style="--r: 3; --c: 2"><strong>Create the invoice</strong></div>
+    <i class="dg-edge" data-from="seen" data-to="skip" data-label="yes"></i>
+    <i class="dg-edge" data-from="seen" data-to="version" data-label="no"></i>
+    <i class="dg-edge" data-from="version" data-to="dlq" data-label="no"></i>
+    <i class="dg-edge" data-from="version" data-to="invoice" data-label="yes"></i>
+  </div>
+  <figcaption>Each check either stops the event at its side or passes it down.</figcaption>
+</figure>
+```
+
+Number the checks in their titles (`1 ·`, `2 ·`) when the text refers to
+them. When two outcomes are the same, such as two different checks that
+both reject a record, draw one box for each check anyway: arrows that cross
+the tree to reach a shared box are harder to follow than a repeated box.
+
+## State machines
+
+Put the main state in the middle, the `start` dot before it, and the other
+states around it. A transition that keeps the state the same, such as
+"event received, map updated", is a loop on the state's box. Attach a note
+with a plain dashed line.
+
+```html
+<figure class="dg" id="fig-task-states" data-legend="none">
+  <div class="dg-canvas" style="--dg-cols: 3">
+    <div class="dg-node start" data-id="start" style="--r: 1; --c: 1"></div>
+    <div class="dg-node good" data-id="running" style="--r: 1; --c: 2"><strong>RUNNING</strong></div>
+    <div class="dg-node bad" data-id="failed" style="--r: 2; --c: 2"><strong>FAILED</strong></div>
+    <div class="dg-node note" data-id="note" style="--r: 2; --c: 3"><span>While not RUNNING, the slot keeps WAL.</span></div>
+    <i class="dg-edge" data-from="start" data-to="running" data-label="created"></i>
+    <i class="dg-edge" data-from="running" data-to="running" data-side="top" data-label="publish events"></i>
+    <i class="dg-edge" data-from="running" data-to="failed" data-offset="-12" data-label="error"></i>
+    <i class="dg-edge" data-from="failed" data-to="running" data-offset="12" data-label="restart"></i>
+    <i class="dg-edge dashed" data-from="failed" data-to="note" data-dir="none"></i>
+  </div>
+  <figcaption>The task leaves RUNNING only on an error, and only a restart brings it back.</figcaption>
+</figure>
+```
 
 ## Walkthroughs
 
@@ -170,7 +254,7 @@ diagram without a walkthrough.
 - **Check the result in a browser.** The checker validates IDs and links but
   can't see overlaps.
 
-## Mermaid
+## Sequence diagrams with Mermaid
 
 ```html
 <figure class="mmd" id="fig-duplicates">
@@ -186,15 +270,12 @@ sequenceDiagram
 </figure>
 ```
 
-- Write the Mermaid source at the start of the line inside `<pre class="mermaid">`.
-  Do not add `<code>` inside it.
-- The template themes Mermaid to match the page and redraws it when the
-  reader switches between light and dark, so do not add `%%{init}%%` or
-  colors.
+- `sequenceDiagram` must be the first word inside `<pre class="mermaid">`,
+  written at the start of the line. Do not add `<code>` inside it.
+- The template themes Mermaid to match the page, waits for the page font
+  before drawing so no text is cut off, and redraws when the reader switches
+  between light and dark. Do not add `%%{init}%%` or colors.
 - The browser reads the source as HTML first, so escape `<` and `&` as
   `&lt;` and `&amp;`. A line break in a note is `&lt;br/&gt;`; a bare
   `<br/>` disappears.
-- `sequenceDiagram`, `stateDiagram-v2`, `erDiagram`, and `gantt` work well.
-  Use `flowchart` only for a decision tree or a pipeline that a grid can't
-  lay out; for architecture, use a box diagram.
 - Use the same participant names as the box diagrams.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="architecture-design template 1.0">
+<meta name="generator" content="architecture-design template 1.1">
 <title>{{Document title}}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,7 +18,7 @@
 })();
 </script>
 <style id="dd-style">
-/* architecture-design template 1.0. Do not edit: check_doc.py --sync restores this block. */
+/* architecture-design template 1.1. Do not edit: check_doc.py --sync restores this block. */
 :root {
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -269,6 +269,13 @@ pre.mermaid.mermaid-offline { display: block; white-space: pre; color: var(--tex
 .dg-node.resource { background: var(--purple-bg); border-color: var(--purple-bd); }
 .dg-node.removed { background: var(--red-bg); border-color: var(--red-bd); border-style: dashed; opacity: .85; }
 .dg-node.removed > strong { text-decoration: line-through; text-decoration-color: var(--red); }
+.dg-node.decision { background: var(--surface); border-color: var(--accent); }
+.dg-node.good { background: var(--green-bg); border-color: var(--green-bd); }
+.dg-node.bad { background: var(--red-bg); border-color: var(--red-bd); }
+.dg-node.note { background: var(--amber-bg); border-color: var(--amber-bd); border-style: dashed; border-radius: 4px; }
+.dg-node.note > span { color: var(--text); }
+.dg-node.start, .dg-node.end { justify-self: center; width: 22px; height: 22px; padding: 0; border-radius: 50%; background: var(--edge); border: 2px solid var(--edge); }
+.dg-node.end { box-shadow: inset 0 0 0 3px var(--surface); }
 .dg-node[data-tip] { cursor: help; }
 .dg-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .dg-refs { position: absolute; top: -11px; right: -8px; display: flex; gap: 4px; }
@@ -289,6 +296,8 @@ pre.mermaid.mermaid-offline { display: block; white-space: pre; color: var(--tex
 .dg-label { position: absolute; z-index: 3; max-width: 180px; padding: 1px 6px; font-size: .78rem; line-height: 1.35; text-align: center; color: var(--text-2); background: var(--surface); border-radius: 4px; transform: translate(-50%, -50%); transition: opacity .15s; }
 .dg-label.h { transform: translate(-50%, calc(-100% - 4px)); background: none; }
 .dg-label.v { transform: translate(8px, -50%); text-align: left; background: none; }
+.dg-label.l { transform: translate(calc(-100% - 8px), -50%); text-align: right; background: none; }
+.dg-label.b { transform: translate(-50%, 4px); background: none; }
 .dg-label[data-tip] { cursor: help; text-decoration: underline dotted var(--muted); }
 .dg.hl-active .dg-node:not(.hl), .dg.hl-active .dg-label:not(.hl) { opacity: .28; }
 .dg.hl-active .edge:not(.hl) { opacity: .15; }
@@ -301,6 +310,8 @@ pre.mermaid.mermaid-offline { display: block; white-space: pre; color: var(--tex
 .lg-swatch.external { border-color: var(--gray-bd); background: var(--gray-bg); }
 .lg-swatch.resource { border-color: var(--purple-bd); background: var(--purple-bg); }
 .lg-swatch.removed { border-color: var(--red-bd); background: var(--red-bg); border-style: dashed; }
+.lg-swatch.good { border-color: var(--green-bd); background: var(--green-bg); }
+.lg-swatch.bad { border-color: var(--red-bd); background: var(--red-bg); }
 .lg-line { width: 26px; border-top: 2px solid var(--edge); }
 .lg-line.dashed { border-top-style: dashed; }
 
@@ -546,15 +557,16 @@ tr.flash > * { animation: dd-flash-bg 1.8s ease-out; }
 <!-- CONTENT END -->
 </main>
 <script id="dd-script">
-/* architecture-design template 1.0. Do not edit: check_doc.py --sync restores this block. */
+/* architecture-design template 1.1. Do not edit: check_doc.py --sync restores this block. */
 (function () {
   'use strict';
   var HLJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/';
   var HLJS_EXTRA = ['properties', 'protobuf', 'dockerfile'];
   var MERMAID = 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js';
   var SVG = 'http://www.w3.org/2000/svg';
-  var KINDS = ['new', 'changed', 'existing', 'external', 'resource', 'removed'];
-  var KIND_LABELS = { new: 'New', changed: 'Changed', existing: 'Existing', external: 'External', resource: 'Config or resource', removed: 'Removed' };
+  var KINDS = ['new', 'changed', 'existing', 'external', 'resource', 'removed', 'good', 'bad'];
+  var KIND_LABELS = { new: 'New', changed: 'Changed', existing: 'Existing', external: 'External', resource: 'Config or resource', removed: 'Removed', good: 'Success', bad: 'Failure' };
+  var NO_LEGEND = ['decision', 'note', 'start', 'end'];
   var root = document.documentElement;
 
   function $(s, r) { return (r || document).querySelector(s); }
@@ -818,7 +830,7 @@ tr.flash > * { animation: dd-flash-bg 1.8s ease-out; }
     }
     return [p1, p2];
   }
-  function labelSpot(pts, at) {
+  function labelSpot(pts, at, off) {
     var best = 0, len = -1;
     for (var i = 0; i < pts.length - 1; i++) {
       var l = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
@@ -826,8 +838,34 @@ tr.flash > * { animation: dd-flash-bg 1.8s ease-out; }
     }
     var a = pts[best], b = pts[best + 1];
     var kind = 'd';
-    if (at !== 'center') kind = Math.abs(a[1] - b[1]) < 1 ? 'h' : Math.abs(a[0] - b[0]) < 1 ? 'v' : 'd';
+    if (at !== 'center') {
+      /* Horizontal labels go above the line, vertical ones to its right; a line shifted
+         down or left by data-offset puts its label below or to its left, away from its twin. */
+      if (Math.abs(a[1] - b[1]) < 1) kind = off > 0 ? 'b' : 'h';
+      else if (Math.abs(a[0] - b[0]) < 1) kind = off < 0 ? 'l' : 'v';
+    }
     return { x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, kind: kind };
+  }
+  /* An arrow from a box back to itself: a loop on one side, with its label past the loop. */
+  function loop(r, side) {
+    var cx = r.x + r.w / 2, cy = r.y + r.h / 2, R = r.x + r.w, B = r.y + r.h;
+    var s = 14, k = 20, d = 46, a = d * 0.75;
+    var p = {
+      right: [[R, cy - s], [R + d, cy - s - k], [R + d, cy + s + k], [R, cy + s], [R + a, cy], 'v'],
+      left: [[r.x, cy + s], [r.x - d, cy + s + k], [r.x - d, cy - s - k], [r.x, cy - s], [r.x - a, cy], 'l'],
+      top: [[cx - s, r.y], [cx - s - k, r.y - d], [cx + s + k, r.y - d], [cx + s, r.y], [cx, r.y - a], 'h'],
+      bottom: [[cx + s, B], [cx + s + k, B + d], [cx - s - k, B + d], [cx - s, B], [cx, B + a], 'b']
+    }[side] || null;
+    if (!p) return loop(r, 'right');
+    function f(q) { return q[0].toFixed(1) + ' ' + q[1].toFixed(1); }
+    var xs = p.slice(0, 4).map(function (q) { return q[0]; }), ys = p.slice(0, 4).map(function (q) { return q[1]; });
+    var x0 = Math.min.apply(null, xs), y0 = Math.min.apply(null, ys);
+    return {
+      d: 'M' + f(p[0]) + ' C' + f(p[1]) + ' ' + f(p[2]) + ' ' + f(p[3]),
+      x: p[4][0], y: p[4][1], kind: p[5],
+      /* The loop's area plus room for its label, so the canvas can grow to fit it. */
+      box: { x: x0 - 40, y: y0 - 26, w: Math.max.apply(null, xs) - x0 + 80, h: Math.max.apply(null, ys) - y0 + 52 }
+    };
   }
 
   function initDiagram(fig, idx) {
@@ -856,6 +894,7 @@ tr.flash > * { animation: dd-flash-bg 1.8s ease-out; }
         from: e.getAttribute('data-from'), to: e.getAttribute('data-to'),
         label: e.getAttribute('data-label') || '', tip: e.getAttribute('data-tip') || '',
         dashed: e.classList.contains('dashed'), both: e.getAttribute('data-dir') === 'both',
+        none: e.getAttribute('data-dir') === 'none', side: e.getAttribute('data-side') || 'right',
         route: e.getAttribute('data-route') || 'auto', offset: parseFloat(e.getAttribute('data-offset')) || 0,
         at: e.getAttribute('data-label-at') || 'auto'
       };
@@ -900,12 +939,16 @@ tr.flash > * { animation: dd-flash-bg 1.8s ease-out; }
         done.push(g);
       });
       var W = canvas.clientWidth, H = canvas.clientHeight, need = { t: 0, r: 0, b: 0, l: 0 };
-      groups.forEach(function (g) {
-        if (!g.box) return;
-        need.t = Math.max(need.t, 10 - g.box.y);
-        need.l = Math.max(need.l, 10 - g.box.x);
-        need.r = Math.max(need.r, g.box.x + g.box.w - (W - 10));
-        need.b = Math.max(need.b, g.box.y + g.box.h - (H - 10));
+      var boxes = groups.map(function (g) { return g.box; });
+      edges.forEach(function (e) {
+        if (e.from === e.to && nodes[e.from]) boxes.push(loop(rectOf(nodes[e.from]), e.side).box);
+      });
+      boxes.forEach(function (b) {
+        if (!b) return;
+        need.t = Math.max(need.t, 10 - b.y);
+        need.l = Math.max(need.l, 10 - b.x);
+        need.r = Math.max(need.r, b.x + b.w - (W - 10));
+        need.b = Math.max(need.b, b.y + b.h - (H - 10));
       });
       if (need.t > .5 || need.r > .5 || need.b > .5 || need.l > .5) {
         var cs = getComputedStyle(canvas);
@@ -934,8 +977,15 @@ tr.flash > * { animation: dd-flash-bg 1.8s ease-out; }
       svg.append(defs);
       edges.forEach(function (e) {
         if (!nodes[e.from] || !nodes[e.to]) return;
-        var pts = route(rectOf(nodes[e.from]), rectOf(nodes[e.to]), e);
-        var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+        var d, s;
+        if (e.from === e.to) {
+          s = loop(rectOf(nodes[e.from]), e.side);
+          d = s.d;
+        } else {
+          var pts = route(rectOf(nodes[e.from]), rectOf(nodes[e.to]), e);
+          d = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+          s = labelSpot(pts, e.at, e.offset);
+        }
         var path = svgEl('path', { d: d, class: 'edge' + (e.dashed ? ' dashed' : '') });
         var hit = svgEl('path', { d: d, class: 'hit' });
         if (e.tip) { hit.setAttribute('data-tip', e.tip); if (e.label) hit.setAttribute('data-tip-title', e.label); }
@@ -945,7 +995,6 @@ tr.flash > * { animation: dd-flash-bg 1.8s ease-out; }
         svg.append(path, hit);
         setMarker(e);
         if (e.lab) {
-          var s = labelSpot(pts, e.at);
           e.lab.className = 'dg-label ' + s.kind + (e.lab.classList.contains('hl') ? ' hl' : '');
           e.lab.style.left = s.x + 'px'; e.lab.style.top = s.y + 'px';
         }
@@ -953,7 +1002,8 @@ tr.flash > * { animation: dd-flash-bg 1.8s ease-out; }
     }
     function setMarker(e) {
       if (!e.path) return;
-      var on = e.path.classList.contains('hl') || e.path.classList.contains('hover');
+      if (e.none) { e.path.removeAttribute('marker-end'); e.path.removeAttribute('marker-start'); return; }
+      var on =e.path.classList.contains('hl') || e.path.classList.contains('hover');
       var url = 'url(#dg' + idx + '-' + (on ? 'h' : 'a') + ')';
       e.path.setAttribute('marker-end', url);
       if (e.both) e.path.setAttribute('marker-start', url); else e.path.removeAttribute('marker-start');
@@ -1007,6 +1057,7 @@ tr.flash > * { animation: dd-flash-bg 1.8s ease-out; }
     var used = {};
     Object.keys(nodes).forEach(function (id) {
       var n = nodes[id], k = 'existing';
+      if (NO_LEGEND.some(function (c) { return n.classList.contains(c); })) return;
       KINDS.forEach(function (kind) { if (n.classList.contains(kind)) k = kind; });
       used[k] = true;
     });
@@ -1113,7 +1164,13 @@ tr.flash > * { animation: dd-flash-bg 1.8s ease-out; }
       blocks.forEach(function (p) { p.removeAttribute('data-processed'); p.textContent = p.getAttribute('data-src'); });
       return window.mermaid.run({ nodes: blocks });
     }
-    loadScript(MERMAID).then(function () {
+    /* Mermaid sizes each box from the width of its text. Measuring before the page font has
+       loaded gives boxes too narrow for the final text, which then gets cut off. */
+    var fonts = document.fonts
+      ? Promise.all([document.fonts.load('400 15px Inter'), document.fonts.load('600 15px Inter')])
+          .catch(function () {}).then(function () { return document.fonts.ready; })
+      : Promise.resolve();
+    Promise.all([loadScript(MERMAID), fonts]).then(function () {
       render();
       document.addEventListener('dd-theme', render);
     }).catch(function () {
