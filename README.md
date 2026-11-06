@@ -13,6 +13,7 @@ whole collection installs with the [skills](https://www.skills.sh/) CLI.
 | [conventional-commits](skills/conventional-commits/SKILL.md) | Writes commit messages in the Conventional Commits style: eleven standard types, a scope chosen from what the diff changes, lowercase imperative subjects, `!` for breaking changes, and an `Assisted-by` trailer as the only AI attribution. |
 | [kantrip](skills/kantrip/SKILL.md) | Uses [Kantrip](https://github.com/sauljabin/kantrip) to store Kafka connection profiles and run kcat, the Kafka and Confluent CLIs, Kaskade, kaf, and kcl against a named cluster, keeping secrets in an OS vault. Knows the commands, exit codes, client limits, and when to hand a prompt to the user. |
 | [kaskade](skills/kaskade/SKILL.md) | Uses [Kaskade](https://github.com/sauljabin/kaskade), the Kafka terminal UI, to browse topics and consumer groups and to consume and decode records (JSON, Avro, Protobuf, Confluent or Apicurio Registry). Builds the command line, `client.ini`, and `settings.yaml` for TLS, SASL, Confluent Cloud, and MSK IAM. |
+| [architecture-design](skills/architecture-design/SKILL.md) | Designs software architecture and writes the design document for a technical decision: problem, decisions, architecture, trade-offs, alternatives, failure modes, known gaps, and open questions, as one HTML page built from a fixed template, so every agent produces the same look. Diagrams first, hover tooltips, a table of contents that stays on screen, and a checker script. See the [example](skills/architecture-design/assets/example.html). |
 | [explain-simply](skills/explain-simply/SKILL.md) | Explains code, errors, and concepts, and writes documentation such as `README.md` and `USAGE.md`, in plain, connected prose without losing information: written for what the reader already knows, one concrete example with real values, each fact said once with one home, and duplicated or contradicting docs found and fixed. |
 
 ## Install the skills CLI
@@ -119,6 +120,8 @@ skills/
   <skill-name>/
     SKILL.md          # Required: frontmatter (name, description) + instructions
     references/       # Optional: detail loaded only when needed
+    assets/           # Optional: templates and examples the skill copies
+    scripts/          # Optional: scripts the skill runs
 ```
 
 Each `name` in the frontmatter matches its folder name, as the specification
