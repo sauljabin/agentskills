@@ -31,7 +31,7 @@ subtitle is one sentence with the outcome.
 | Bad | Good |
 | --- | --- |
 | Order events | Publish order events with a transactional outbox |
-| Kafka proxy design | Validate Kafka records against their schema at the proxy |
+| API rate limits | Limit each API key to 100 requests per second at the gateway |
 
 The meta row holds status, version, date (`YYYY-MM-DD`), authors, and
 reviewers. Status and version follow the rules in
@@ -85,8 +85,8 @@ One card per decision. This section is a summary: each card is short and
 links to where the decision is explained, so nothing in it is repeated
 elsewhere.
 
-- The title is the decision as a statement: "Validation is a topic setting",
-  not "Validation".
+- The title is the decision as a statement: "One topic, keyed by order ID",
+  not "Topics".
 - The body says what was decided and why, in one to three sentences.
 - The links go to the Architecture subsection that explains it and, when
   there were real alternatives, to the Alternatives subsection.
@@ -128,7 +128,7 @@ links to where it comes from or how it is handled.
 | --- | --- |
 | Better reliability. | An event exists if and only if its order committed: no lost events and no events for rolled-back orders (D1). |
 | Some operational overhead. | Kafka Connect is a new deployment to run, upgrade, and watch (Q1). |
-| Possible latency. | A disabled schema version is still accepted until the cache expires, up to 30 s (F3). |
+| Some risk of data loss. | While the connector is stopped, PostgreSQL keeps the WAL; at 50 GB it drops the slot and unpublished events are lost (F2). |
 
 A weakness is a cost the design accepts. If the team does not accept it, it
 is a [known gap](#known-gaps) instead: move it there and link it.

@@ -148,7 +148,7 @@ draws a dashed frame around the listed boxes, with the label in its top
 corner. Use groups for where things run (a cluster, a namespace, outside the
 network) or who owns them. A group whose members include another group's
 members is drawn around it. Add the class `plain` for a label without a
-frame, for example "Data plane" inside a cluster frame.
+frame, for example "Consumers" over boxes that share a role but not a place.
 
 The members of a group must form a rectangle of cells with no other box
 inside, or the frame will cover boxes that are not members.
@@ -199,7 +199,7 @@ the tree to reach a shared box are harder to follow than a repeated box.
 
 Put the main state in the middle, the `start` dot before it, and the other
 states around it. A transition that keeps the state the same, such as
-"event received, map updated", is a loop on the state's box. Attach a note
+"publish events", is a loop on the state's box. Attach a note
 with a plain dashed line.
 
 ```html

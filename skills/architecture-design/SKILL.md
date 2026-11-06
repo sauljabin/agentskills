@@ -68,7 +68,7 @@ diagram rules from this skill.
    what you cannot find, all questions in one message. When something is
    unknown but not blocking, write it down as an open question and continue.
 2. **Find the decisions.** List the questions the design must answer, such
-   as "Where does validation run?". For each one, compare at least two
+   as "How do events leave the database?". For each one, compare at least two
    realistic options against the goals, pick one, and name what it costs.
    Decisions the user already made are inputs: record them, and if one
    conflicts with a goal, say so in a callout or a known gap instead of
@@ -140,8 +140,8 @@ Reference material comes last (11–13).
 
 Three sections are easy to mix up:
 
-- A **weakness** is a cost the design accepts and lives with, such as "a
-  disabled schema version is accepted for up to 30 s".
+- A **weakness** is a cost the design accepts and lives with, such as "duplicate
+  events after a connector restart, which every consumer must drop".
 - A **known gap** is a problem the design does not accept: it has candidate
   fixes, a proposal, and an owner, and must be fixed by a stated point.
 - An **open question** is missing information: someone must answer it before
