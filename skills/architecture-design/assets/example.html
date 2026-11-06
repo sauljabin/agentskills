@@ -1,0 +1,1559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="architecture-design template 1.0">
+<title>Order events outbox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap">
+<script id="dd-theme">
+(function () {
+  var pref = 'auto';
+  try { pref = localStorage.getItem('dd-theme') || 'auto'; } catch (e) {}
+  var dark = pref === 'dark' || (pref === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme-pref', pref);
+})();
+</script>
+<style id="dd-style">
+/* architecture-design template 1.0. Do not edit: check_doc.py --sync restores this block. */
+:root {
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --toc-w: 280px;
+  --radius: 12px;
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text: #0f172a;
+  --text-2: #334155;
+  --muted: #64748b;
+  --accent: #1d4ed8;
+  --accent-bg: #eef3ff;
+  --green: #047857; --green-bg: #ecfdf5; --green-bd: #34b27b;
+  --amber: #a15c07; --amber-bg: #fffaeb; --amber-bd: #e5a530;
+  --red: #b91c1c; --red-bg: #fef2f2; --red-bd: #ef7d7d;
+  --purple: #7e22ce; --purple-bg: #f8f2ff; --purple-bd: #b689e8;
+  --blue: #1d4ed8; --blue-bg: #eef4ff; --blue-bd: #6b8fe0;
+  --gray: #475569; --gray-bg: #f1f5f9; --gray-bd: #94a3b8;
+  --edge: #6b7a90;
+  --edge-hl: #1d4ed8;
+  --code-bg: #f6f8fa;
+  --tip-bg: #0f172a;
+  --tip-text: #f1f5f9;
+  --shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 2px 6px rgba(15, 23, 42, .05);
+  --tk-keyword: #cf222e; --tk-string: #0a3069; --tk-number: #0550ae; --tk-comment: #6e7781;
+  --tk-title: #8250df; --tk-attr: #0550ae; --tk-type: #953800; --tk-name: #116329;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #0b1020;
+  --surface: #121a2b;
+  --surface-2: #0f1626;
+  --border: #223047;
+  --border-strong: #34455f;
+  --text: #e6ebf5;
+  --text-2: #b8c3d6;
+  --muted: #8a98b0;
+  --accent: #7ea6ff;
+  --accent-bg: #172344;
+  --green: #4ade80; --green-bg: #0f2a20; --green-bd: #2f9e6e;
+  --amber: #fbbf24; --amber-bg: #2a2112; --amber-bd: #b7862b;
+  --red: #f87171; --red-bg: #2c1518; --red-bd: #c2484f;
+  --purple: #c4a1ff; --purple-bg: #221a36; --purple-bd: #8b63d6;
+  --blue: #7ea6ff; --blue-bg: #14213d; --blue-bd: #4a6fc4;
+  --gray: #a3b0c4; --gray-bg: #182132; --gray-bd: #5b6b84;
+  --edge: #8494ae;
+  --edge-hl: #7ea6ff;
+  --code-bg: #0d1424;
+  --tip-bg: #e6ebf5;
+  --tip-text: #0b1020;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  --tk-keyword: #ff7b72; --tk-string: #a5d6ff; --tk-number: #79c0ff; --tk-comment: #8b949e;
+  --tk-title: #d2a8ff; --tk-attr: #79c0ff; --tk-type: #ffa657; --tk-name: #7ee787;
+  color-scheme: dark;
+}
+
+/* Base */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 var(--font); -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 14px; padding-left: 22px; }
+li { margin: 0 0 6px; }
+strong, b { font-weight: 700; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 32px 0; }
+
+/* Layout */
+.dd-main { margin-left: var(--toc-w); padding: 56px clamp(24px, 4vw, 64px) 120px; max-width: 1280px; }
+main > section { margin-top: 80px; scroll-margin-top: 28px; }
+main > section > h2 { font-size: 1.85rem; font-weight: 800; letter-spacing: -.025em; line-height: 1.2; margin: 0 0 18px; }
+h3 { font-size: 1.2rem; font-weight: 700; letter-spacing: -.01em; line-height: 1.35; margin: 44px 0 12px; scroll-margin-top: 28px; }
+h4 { font-size: 1rem; font-weight: 700; margin: 24px 0 8px; }
+main > section > p, main > section > ul, main > section > ol:not(.walkthrough),
+main > section > div > p { max-width: 80ch; }
+.lead { font-size: 1.08rem; color: var(--text-2); }
+.eyebrow { margin: 0 0 8px; font-size: .74rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.anchor { margin-left: 10px; color: var(--border-strong); text-decoration: none; font-weight: 500; opacity: 0; transition: opacity .15s; }
+h2:hover .anchor, h3:hover .anchor, .anchor:focus { opacity: 1; }
+
+/* Header */
+.dd-header h1 { font-size: clamp(2rem, 3.4vw, 2.6rem); font-weight: 800; letter-spacing: -.03em; line-height: 1.12; margin: 0 0 12px; }
+.dd-header .subtitle { font-size: 1.15rem; color: var(--text-2); max-width: 70ch; margin: 0; }
+.dd-header .meta { display: flex; flex-wrap: wrap; gap: 12px 32px; margin: 26px 0 0; padding: 16px 22px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.dd-header .meta > div { display: flex; flex-direction: column; gap: 3px; }
+.dd-header .meta dt { font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.dd-header .meta dd { margin: 0; font-weight: 600; }
+.dd-header > .callout { margin-top: 0; }
+
+/* Table of contents */
+.dd-toc { position: fixed; top: 0; bottom: 0; left: 0; width: var(--toc-w); display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--border); z-index: 40; }
+.dd-toc-head { padding: 24px 22px 16px; border-bottom: 1px solid var(--border); }
+.dd-toc-head .eyebrow { margin-bottom: 6px; }
+.dd-toc-title { display: block; color: var(--text); text-decoration: none; font-weight: 750; font-size: .98rem; line-height: 1.3; }
+.dd-toc-meta { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.dd-ver { font: 600 .76rem var(--mono); color: var(--muted); text-decoration: none; }
+.dd-toc-list { list-style: none; margin: 0; padding: 12px 10px 24px; overflow-y: auto; flex: 1; }
+.dd-toc-list li { margin: 0; }
+.dd-toc-list ol { list-style: none; margin: 2px 0 6px 16px; padding: 0 0 0 8px; border-left: 1px solid var(--border); }
+.dd-toc-list a { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; color: var(--text-2); text-decoration: none; font-size: .9rem; font-weight: 550; line-height: 1.35; }
+.dd-toc-list ol a { padding: 4px 10px; font-size: .84rem; font-weight: 500; color: var(--muted); }
+.dd-toc-list a:hover { background: var(--surface-2); color: var(--text); }
+.dd-toc-list a.active { background: var(--accent-bg); color: var(--accent); }
+.dd-count { flex: none; font: 600 .7rem/1.6 var(--mono); color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 0 7px; }
+.dd-toc-foot { padding: 12px 22px 16px; border-top: 1px solid var(--border); }
+.dd-btn { font: 600 .8rem var(--font); color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+.dd-btn:hover { color: var(--text); border-color: var(--border-strong); }
+.dd-topbar { display: none; position: fixed; top: 0; left: 0; right: 0; height: 54px; align-items: center; gap: 12px; padding: 0 16px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 45; }
+.dd-topbar-title { font-weight: 700; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Chips and IDs */
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: .74rem; font-weight: 700; line-height: 1; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--gray-bd); background: var(--gray-bg); color: var(--gray); white-space: nowrap; vertical-align: middle; }
+.chip.good { border-color: var(--green-bd); background: var(--green-bg); color: var(--green); }
+.chip.warn { border-color: var(--amber-bd); background: var(--amber-bg); color: var(--amber); }
+.chip.bad { border-color: var(--red-bd); background: var(--red-bg); color: var(--red); }
+.chip.info { border-color: var(--blue-bd); background: var(--blue-bg); color: var(--blue); }
+.id { display: inline-block; font: 700 .74rem/1 var(--mono); padding: 4px 7px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text-2); text-decoration: none; white-space: nowrap; vertical-align: 1px; }
+.id.k-d, .id.k-a { border-color: var(--blue-bd); background: var(--blue-bg); color: var(--blue); }
+.id.k-f { border-color: var(--red-bd); background: var(--red-bg); color: var(--red); }
+.id.k-g { border-color: var(--amber-bd); background: var(--amber-bg); color: var(--amber); }
+.id.k-q { border-color: var(--purple-bd); background: var(--purple-bg); color: var(--purple); }
+a.id:hover { border-color: var(--accent); }
+a.term { color: inherit; text-decoration: underline dotted var(--muted); text-decoration-thickness: 1.5px; cursor: help; }
+code { font-family: var(--mono); font-size: .86em; background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; padding: .1em .36em; }
+
+/* Callouts */
+.callout { margin: 22px 0; padding: 14px 18px; max-width: 80ch; border: 1px solid var(--blue-bd); border-left: 4px solid var(--blue); background: var(--blue-bg); border-radius: 10px; }
+.callout.warning { border-color: var(--amber-bd); border-left-color: var(--amber); background: var(--amber-bg); }
+.callout.danger { border-color: var(--red-bd); border-left-color: var(--red); background: var(--red-bg); }
+.callout.tip { border-color: var(--green-bd); border-left-color: var(--green); background: var(--green-bg); }
+.callout > :last-child { margin-bottom: 0; }
+.callout-title { font-weight: 750; margin: 0 0 4px; }
+.callout.note .callout-title { color: var(--blue); }
+.callout.warning .callout-title { color: var(--amber); }
+.callout.danger .callout-title { color: var(--red); }
+.callout.tip .callout-title { color: var(--green); }
+
+/* Cards (decisions) */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 20px; margin: 24px 0; }
+.card { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px; box-shadow: var(--shadow); scroll-margin-top: 28px; }
+.card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.card h3 { margin: 0 0 10px; font-size: 1.14rem; color: var(--accent); }
+.card p { color: var(--text-2); margin-bottom: 12px; }
+.card .more { margin-top: auto; padding-top: 6px; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .88rem; font-weight: 600; }
+.card .more a { text-decoration: none; }
+.card .more a:hover { text-decoration: underline; }
+
+/* Panels (strengths/weaknesses, goals/non-goals) */
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 20px; margin: 24px 0; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 26px; box-shadow: var(--shadow); }
+.panel > h3 { margin: 0 0 12px; font-size: 1.14rem; }
+.panel.good > h3 { color: var(--green); }
+.panel.warn > h3 { color: var(--amber); }
+.panel.bad > h3 { color: var(--red); }
+.panel.info > h3 { color: var(--accent); }
+.panel.neutral > h3 { color: var(--text-2); }
+.panel ul, .panel ol { margin: 0; padding-left: 20px; }
+.panel li { margin: 0 0 10px; color: var(--text-2); }
+.panel li:last-child { margin-bottom: 0; }
+.panel li::marker { color: var(--muted); }
+
+/* Items (alternatives, gaps, questions, parking lot) */
+.items { display: grid; gap: 14px; margin: 20px 0; }
+.item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 22px; box-shadow: var(--shadow); scroll-margin-top: 28px; }
+.item-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.item-head h3 { margin: 0; font-size: 1.05rem; flex: 1 1 260px; }
+.item > p { color: var(--text-2); max-width: 85ch; }
+.item > :last-child { margin-bottom: 0; }
+.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 18px; margin: 12px 0 0; font-size: .95rem; }
+.facts dt { color: var(--muted); font-weight: 650; }
+.facts dd { margin: 0; color: var(--text-2); }
+.facts dd > :last-child { margin-bottom: 0; }
+.item.resolved { opacity: .78; }
+.item.resolved .item-head h3 { text-decoration: line-through; text-decoration-color: var(--muted); }
+
+/* Stats */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 14px; margin: 22px 0; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; box-shadow: var(--shadow); }
+.stat b { display: block; font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.25; }
+.stat span { display: block; color: var(--muted); font-size: .86rem; line-height: 1.4; margin-top: 2px; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 20px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+table { border-collapse: collapse; width: 100%; font-size: .94rem; }
+th, td { padding: 10px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+thead th { background: var(--surface-2); color: var(--text-2); font-size: .8rem; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+tbody tr:last-child > * { border-bottom: 0; }
+tbody th { font-weight: 650; color: var(--text); }
+td.yes::before { content: "✓ "; color: var(--green); font-weight: 800; }
+td.no::before { content: "✗ "; color: var(--red); font-weight: 800; }
+td.partial::before { content: "~ "; color: var(--amber); font-weight: 800; }
+.chosen { background: color-mix(in srgb, var(--green-bg) 70%, transparent); }
+thead th.chosen { color: var(--green); }
+tr[id] { scroll-margin-top: 28px; }
+
+/* Glossary and references */
+dl.glossary { display: grid; grid-template-columns: minmax(130px, max-content) minmax(0, 1fr); gap: 12px 28px; margin: 20px 0; padding: 22px 26px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+dl.glossary dt { font-weight: 700; scroll-margin-top: 28px; }
+dl.glossary dd { margin: 0; color: var(--text-2); }
+ul.refs { list-style: none; padding: 0; display: grid; gap: 10px; max-width: none; }
+ul.refs li { margin: 0; padding: 12px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+ul.refs a { font-weight: 650; }
+ul.refs span { display: block; color: var(--muted); font-size: .92rem; }
+
+/* Code */
+pre { position: relative; margin: 20px 0; padding: 16px 18px; background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; font: .86rem/1.6 var(--mono); }
+pre code { background: none; border: 0; padding: 0; font-size: inherit; color: var(--text); }
+pre[data-lang]::after { content: attr(data-lang); position: absolute; top: 8px; right: 12px; font: 600 .68rem var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+figure.code { margin: 20px 0; }
+figure.code > figcaption { padding: 8px 16px; font: 600 .78rem var(--mono); color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; }
+figure.code > pre { margin: 0; border-radius: 0 0 var(--radius) var(--radius); }
+.copy { position: absolute; top: 6px; right: 6px; z-index: 1; opacity: 0; font: 600 .72rem var(--font); color: var(--text-2); background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 9px; cursor: pointer; transition: opacity .15s; }
+pre:hover .copy, .copy:focus { opacity: 1; }
+.hljs-keyword, .hljs-selector-tag, .hljs-doctag, .hljs-meta .hljs-keyword { color: var(--tk-keyword); }
+.hljs-string, .hljs-regexp, .hljs-meta .hljs-string { color: var(--tk-string); }
+.hljs-number, .hljs-literal, .hljs-variable, .hljs-template-variable, .hljs-symbol, .hljs-bullet { color: var(--tk-number); }
+.hljs-comment, .hljs-quote { color: var(--tk-comment); font-style: italic; }
+.hljs-title, .hljs-section, .hljs-title.class_, .hljs-title.function_ { color: var(--tk-title); }
+.hljs-attr, .hljs-attribute, .hljs-property { color: var(--tk-attr); }
+.hljs-type, .hljs-built_in { color: var(--tk-type); }
+.hljs-name, .hljs-tag, .hljs-selector-id, .hljs-selector-class, .hljs-meta { color: var(--tk-name); }
+.hljs-addition { color: var(--green); background: var(--green-bg); }
+.hljs-deletion { color: var(--red); background: var(--red-bg); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+/* Figures */
+figure { margin: 28px 0; }
+figure.dg, figure.mmd { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; scroll-margin-top: 28px; }
+figure.dg > figcaption, figure.mmd > figcaption { padding: 14px 22px 16px; border-top: 1px solid var(--border); color: var(--text-2); font-size: .95rem; }
+pre.mermaid { margin: 0; padding: 24px; background: none; border: 0; border-radius: 0; display: flex; justify-content: center; overflow-x: auto; font-family: var(--font); }
+pre.mermaid:not([data-processed="true"]):not(.mermaid-offline) { color: transparent; min-height: 140px; }
+pre.mermaid.mermaid-offline { display: block; white-space: pre; color: var(--text-2); font-family: var(--mono); }
+
+/* Box diagrams */
+.dg-scroll { overflow-x: auto; }
+.dg-canvas { position: relative; display: grid; grid-template-columns: repeat(var(--dg-cols, 4), minmax(var(--dg-min, 150px), 1fr)); column-gap: var(--dg-col-gap, 64px); row-gap: var(--dg-row-gap, 64px); align-items: center; padding: 48px 32px 32px; min-width: min-content; }
+.dg-node { grid-row: var(--r, auto); grid-column: var(--c, auto) / span var(--span, 1); position: relative; z-index: 2; padding: 12px 14px; text-align: center; line-height: 1.4; background: var(--blue-bg); border: 1.5px solid var(--blue-bd); border-radius: 10px; transition: opacity .15s, box-shadow .15s; }
+.dg-node > strong { display: block; font-size: .98rem; font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+.dg-node > span { display: block; font-size: .82rem; color: var(--text-2); }
+.dg-node > code { font-size: .78rem; }
+.dg-node.new { background: var(--green-bg); border-color: var(--green-bd); }
+.dg-node.changed { background: var(--green-bg); border-color: var(--green-bd); border-style: dashed; }
+.dg-node.external { background: var(--gray-bg); border-color: var(--gray-bd); }
+.dg-node.resource { background: var(--purple-bg); border-color: var(--purple-bd); }
+.dg-node.removed { background: var(--red-bg); border-color: var(--red-bd); border-style: dashed; opacity: .85; }
+.dg-node.removed > strong { text-decoration: line-through; text-decoration-color: var(--red); }
+.dg-node[data-tip] { cursor: help; }
+.dg-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dg-refs { position: absolute; top: -11px; right: -8px; display: flex; gap: 4px; }
+.dg-refs .id { font-size: .66rem; padding: 3px 5px; box-shadow: 0 0 0 2px var(--surface); }
+.dg-edge { display: none; }
+.dg-group { position: absolute; z-index: 0; border: 1.5px dashed var(--border-strong); border-radius: 14px; background: color-mix(in srgb, var(--surface-2) 75%, transparent); pointer-events: none; }
+.dg-group::before { content: attr(data-label); position: absolute; top: 12px; left: 16px; font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.dg-group.plain { border: 0; background: none; }
+.dg-group.plain::before { left: 0; top: 2px; }
+.dg-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; overflow: visible; pointer-events: none; }
+.dg-svg .edge { fill: none; stroke: var(--edge); stroke-width: 1.6; transition: opacity .15s; }
+.dg-svg .edge.dashed { stroke-dasharray: 6 5; }
+.dg-svg .edge.hl, .dg-svg .edge.hover { stroke: var(--edge-hl); stroke-width: 2.4; }
+.dg-svg .hit { fill: none; stroke: transparent; stroke-width: 14; pointer-events: stroke; }
+.dg-svg .hit[data-tip] { cursor: help; }
+.dg-svg .mk { fill: var(--edge); }
+.dg-svg .mk-hl { fill: var(--edge-hl); }
+.dg-label { position: absolute; z-index: 3; max-width: 180px; padding: 1px 6px; font-size: .78rem; line-height: 1.35; text-align: center; color: var(--text-2); background: var(--surface); border-radius: 4px; transform: translate(-50%, -50%); transition: opacity .15s; }
+.dg-label.h { transform: translate(-50%, calc(-100% - 4px)); background: none; }
+.dg-label.v { transform: translate(8px, -50%); text-align: left; background: none; }
+.dg-label[data-tip] { cursor: help; text-decoration: underline dotted var(--muted); }
+.dg.hl-active .dg-node:not(.hl), .dg.hl-active .dg-label:not(.hl) { opacity: .28; }
+.dg.hl-active .edge:not(.hl) { opacity: .15; }
+.dg .dg-node.hl { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+.dg-legend { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 12px 22px; border-top: 1px solid var(--border); font-size: .8rem; color: var(--muted); }
+.dg-legend > span { display: inline-flex; align-items: center; gap: 7px; }
+.lg-swatch { width: 16px; height: 12px; border-radius: 3px; border: 1.5px solid var(--blue-bd); background: var(--blue-bg); }
+.lg-swatch.new { border-color: var(--green-bd); background: var(--green-bg); }
+.lg-swatch.changed { border-color: var(--green-bd); background: var(--green-bg); border-style: dashed; }
+.lg-swatch.external { border-color: var(--gray-bd); background: var(--gray-bg); }
+.lg-swatch.resource { border-color: var(--purple-bd); background: var(--purple-bg); }
+.lg-swatch.removed { border-color: var(--red-bd); background: var(--red-bg); border-style: dashed; }
+.lg-line { width: 26px; border-top: 2px solid var(--edge); }
+.lg-line.dashed { border-top-style: dashed; }
+
+/* Walkthrough, split, tabs */
+ol.walkthrough { list-style: none; counter-reset: wt; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 10px; margin: 18px 0 28px; padding: 0; }
+ol.walkthrough > li { counter-increment: wt; position: relative; margin: 0; padding: 11px 14px 11px 50px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; transition: border-color .15s, background .15s; }
+ol.walkthrough > li::before { content: counter(wt); position: absolute; left: 14px; top: 11px; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-bg); color: var(--accent); font: 700 .78rem/24px var(--font); text-align: center; }
+ol.walkthrough[data-for] > li { cursor: pointer; }
+ol.walkthrough > li:hover, ol.walkthrough > li:focus { outline: none; border-color: var(--accent); background: var(--accent-bg); }
+.split { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(260px, 1fr); gap: 24px; align-items: start; margin: 28px 0; }
+.split > figure, .split > ol.walkthrough { margin: 0; }
+.split > ol.walkthrough { grid-template-columns: 1fr; }
+.tabs { margin: 28px 0; }
+.tab-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tab-bar button { font: 600 .86rem var(--font); color: var(--text-2); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.tab-bar button[aria-selected="true"] { color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
+.tabs > [data-tab] > figure:first-child { margin-top: 0; }
+
+/* Tooltip and target highlight */
+.dd-tip { position: fixed; z-index: 100; max-width: 340px; padding: 9px 12px; border-radius: 9px; background: var(--tip-bg); color: var(--tip-text); font-size: .84rem; line-height: 1.45; box-shadow: 0 10px 28px rgba(0, 0, 0, .2); pointer-events: none; opacity: 0; transform: translateY(4px); transition: opacity .12s, transform .12s; }
+.dd-tip.show { opacity: 1; transform: none; }
+.dd-tip strong { display: block; margin-bottom: 2px; }
+.flash { animation: dd-flash 1.8s ease-out; }
+tr.flash > * { animation: dd-flash-bg 1.8s ease-out; }
+@keyframes dd-flash { 0%, 30% { box-shadow: 0 0 0 4px var(--accent); } 100% { box-shadow: 0 0 0 4px transparent; } }
+@keyframes dd-flash-bg { 0%, 30% { background: var(--accent-bg); } 100% { background: transparent; } }
+
+/* Responsive and print */
+@media (max-width: 1100px) {
+  .split { grid-template-columns: 1fr; }
+}
+@media (max-width: 1000px) {
+  .dd-topbar { display: flex; }
+  .dd-toc { top: 54px; transform: translateX(-100%); visibility: hidden; transition: transform .2s ease, visibility .2s; }
+  .dd-toc.open { transform: none; visibility: visible; box-shadow: 0 10px 40px rgba(0, 0, 0, .25); }
+  .dd-main { margin-left: 0; padding: 84px 16px 72px; }
+  main > section, h3, .card, .item, tr[id], dl.glossary dt, figure.dg, figure.mmd { scroll-margin-top: 70px; }
+}
+@media (max-width: 640px) {
+  main > section { margin-top: 60px; }
+  main > section > h2 { font-size: 1.55rem; }
+  dl.glossary, .facts { grid-template-columns: 1fr; }
+  dl.glossary dd { margin-bottom: 8px; }
+  .facts dd { margin-bottom: 6px; }
+}
+@media print {
+  .dd-toc, .dd-topbar, .copy, .dd-tip, .anchor { display: none !important; }
+  .dd-main { margin: 0; padding: 0; max-width: none; }
+  body { background: #fff; }
+  .card, .item, .panel, figure, .stat, tr { break-inside: avoid; }
+  main > section { margin-top: 40px; }
+}
+</style>
+</head>
+<body>
+<main class="dd-main">
+<!-- CONTENT START: write only between CONTENT START and CONTENT END. Components: references/components.md -->
+
+<header class="dd-header" id="top">
+  <p class="eyebrow">Design document</p>
+  <h1>Publish order events with a transactional outbox</h1>
+  <p class="subtitle">Every committed order produces exactly one <code>OrderPlaced</code> event, even when Kafka is down at checkout time.</p>
+  <dl class="meta">
+    <div><dt>Status</dt><dd><span class="chip info" data-status>In review</span></dd></div>
+    <div><dt>Version</dt><dd><span data-version>0.3</span></dd></div>
+    <div><dt>Updated</dt><dd>2026-11-06</dd></div>
+    <div><dt>Authors</dt><dd>Ana Ruiz (Orders)</dd></div>
+    <div><dt>Reviewers</dt><dd>Marta Gil (Platform), Luis Ortega (Shipping)</dd></div>
+  </dl>
+</header>
+
+<section id="overview">
+  <h2>Overview</h2>
+  <p class="lead">Orders API saves an order in PostgreSQL and then publishes <code>OrderPlaced</code> to Kafka as a second step. When that second step fails, the order exists but Billing and Shipping never hear about it; in September this happened to 1,214 orders. This design writes the event to an <a class="term" href="#term-outbox">outbox</a> table in the same transaction as the order, and Debezium copies it to Kafka from the database log, so an event exists if and only if its order does. The cost is a new Kafka Connect deployment and duplicate events that every consumer must drop.</p>
+  <aside class="callout note">
+    <p class="callout-title">Reviewers</p>
+    <p>Two answers block the rollout: who runs Kafka Connect (<a class="id" href="#q1">Q1</a>) and whether the database reboot fits the 2026-11-24 maintenance window (<a class="id" href="#q3">Q3</a>).</p>
+  </aside>
+</section>
+
+<section id="problem">
+  <h2>Problem</h2>
+  <p>The commit and the publish are two separate steps, a <a class="term" href="#term-dual-write">dual write</a>, and nothing retries the second one after the first succeeds. Order 84121 shows what happens when a broker restarts during checkout:</p>
+  <figure class="mmd" id="fig-today">
+<pre class="mermaid">
+sequenceDiagram
+  participant C as Checkout
+  participant API as Orders API
+  participant PG as PostgreSQL
+  participant K as Kafka
+  C->>API: POST /orders
+  API->>PG: INSERT order 84121, COMMIT
+  PG-->>API: OK
+  API-xK: publish OrderPlaced
+  Note over API,K: broker restart: timeout after 30 s
+  API-->>C: 201 Created
+  Note over API: logs the error and moves on.&lt;br/&gt;Billing never sees order 84121.
+</pre>
+    <figcaption>Today, a failed publish after a successful commit loses the event. The customer gets a confirmation, but Billing never sends an invoice and Shipping never ships. Support fixed the 1,214 September cases by hand.</figcaption>
+  </figure>
+  <p>Retrying the publish does not close the gap: if the pod dies between the commit and the retry, the event is still lost.</p>
+
+  <div class="panels">
+    <div class="panel good">
+      <h3>Goals</h3>
+      <ul>
+        <li>Every committed order produces its event, and no event exists for an order that rolled back.</li>
+        <li>99% of events reach Kafka within 2 s of the commit.</li>
+        <li>Orders API keeps accepting orders while Kafka is down.</li>
+        <li>Consumers change how they read events, not what they do with them.</li>
+      </ul>
+    </div>
+    <div class="panel neutral">
+      <h3>Non-goals</h3>
+      <ul>
+        <li>Event sourcing: orders stay rows in PostgreSQL.</li>
+        <li>Exactly-once delivery end to end. Consumers drop duplicates instead (<a class="id" href="#d4">D4</a>).</li>
+        <li>Events for payments and refunds (<a class="id" href="#p1">P1</a>).</li>
+        <li>Events for orders created before the rollout.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 id="constraints">Constraints</h3>
+  <div class="stats">
+    <div class="stat"><b>PostgreSQL 15</b><span>Amazon RDS, Multi-AZ, database <code>orders</code></span></div>
+    <div class="stat"><b>Kafka 3.6</b><span>Amazon MSK, shared with other teams</span></div>
+    <div class="stat"><b>4,800 / h</b><span>Peak orders, Black Friday 2025</span></div>
+    <div class="stat"><b>3 replicas</b><span>Orders API pods, all write orders</span></div>
+  </div>
+</section>
+
+<section id="decisions">
+  <h2>Decisions</h2>
+  <div class="cards">
+    <article class="card" id="d1">
+      <div class="card-head"><span class="id">D1</span></div>
+      <h3>The order and its event commit together</h3>
+      <p>Orders API inserts the event into an <code>outbox</code> table in the same transaction as the order and deletes it before the commit. The insert stays in the database log, so the event exists only if the order committed.</p>
+      <p class="more"><a href="#how-commit">How it works</a><a href="#alt-consistency">Alternatives</a></p>
+    </article>
+    <article class="card" id="d2">
+      <div class="card-head"><span class="id">D2</span></div>
+      <h3>Debezium copies events from the WAL</h3>
+      <p>A Debezium connector on Kafka Connect reads outbox inserts from PostgreSQL's log and publishes them. No polling queries hit the orders database.</p>
+      <p class="more"><a href="#how-capture">How it works</a><a href="#alt-capture">Alternatives</a></p>
+    </article>
+    <article class="card" id="d3">
+      <div class="card-head"><span class="id">D3</span></div>
+      <h3>One topic, keyed by order ID</h3>
+      <p>All order events go to <code>orders.events.v1</code> with the order ID as the key, so the events of one order arrive in the order they happened.</p>
+      <p class="more"><a href="#how-topic">How it works</a></p>
+    </article>
+    <article class="card" id="d4">
+      <div class="card-head"><span class="id">D4</span></div>
+      <h3>Consumers drop duplicates</h3>
+      <p>Delivery is at least once. Each consumer records the <code>event_id</code>s it has processed and skips repeats.</p>
+      <p class="more"><a href="#how-duplicates">How it works</a></p>
+    </article>
+    <article class="card" id="d5">
+      <div class="card-head"><span class="id">D5</span></div>
+      <h3>JSON events with a versioned envelope</h3>
+      <p>Every event wraps its payload in <code>event_id</code>, <code>event_type</code> and <code>schema_version</code>, so consumers can route and drop duplicates without parsing the payload.</p>
+      <p class="more"><a href="#how-format">How it works</a></p>
+    </article>
+    <article class="card" id="d6">
+      <div class="card-head"><span class="id">D6</span></div>
+      <h3>Shadow run before consumers switch</h3>
+      <p>For 7 days both the old and the new topic get every event, and a daily job compares them. Consumers move only after 7 days without a missing event.</p>
+      <p class="more"><a href="#rollout">How it works</a></p>
+    </article>
+  </div>
+</section>
+
+<section id="architecture">
+  <h2>Architecture</h2>
+  <p>Orders API stops talking to Kafka. It writes to PostgreSQL only, and Debezium turns the database log into events. Hover a box or an arrow for details, or a step below to follow it in the diagram.</p>
+  <figure class="dg" id="fig-architecture" data-legend="solid=Synchronous call; dashed=Asynchronous stream">
+    <div class="dg-canvas" style="--dg-cols: 5; --dg-min: 140px">
+      <div class="dg-group" data-label="Orders service" data-members="api pg"></div>
+      <div class="dg-group" data-label="Kafka platform" data-members="connect topic"></div>
+      <div class="dg-group plain" data-label="Consumers" data-members="shipping billing"></div>
+      <div class="dg-node external" data-id="checkout" style="--r: 1; --c: 1"><strong>Checkout</strong><span>web and mobile</span></div>
+      <div class="dg-node changed" data-id="api" style="--r: 1; --c: 2" data-refs="D1" data-tip="Spring Boot 3, 3 replicas. The direct Kafka producer is removed after the cut-over."><strong>Orders API</strong><span>writes order + outbox</span></div>
+      <div class="dg-node" data-id="pg" style="--r: 1; --c: 3" data-tip="RDS PostgreSQL 15, Multi-AZ. New: outbox table, logical replication on, slot debezium_orders."><strong>PostgreSQL</strong><span><code>orders</code>, <code>outbox</code></span></div>
+      <div class="dg-node new" data-id="connect" style="--r: 1; --c: 4" data-refs="D2" data-tip="Debezium 2.7 PostgreSQL connector with the outbox event router, one task."><strong>Debezium</strong><span>on Kafka Connect</span></div>
+      <div class="dg-node resource" data-id="topic" style="--r: 1; --c: 5" data-refs="D3" data-tip="12 partitions, replication factor 3, 7 days retention."><strong>orders.events.v1</strong><span>Kafka topic</span></div>
+      <div class="dg-node" data-id="shipping" style="--r: 2; --c: 4" data-refs="D4"><strong>Shipping</strong><span>creates shipments</span></div>
+      <div class="dg-node" data-id="billing" style="--r: 2; --c: 5" data-refs="D4"><strong>Billing</strong><span>sends invoices</span></div>
+      <i class="dg-edge" data-from="checkout" data-to="api" data-label="HTTPS" data-tip="POST /orders. Returns 201 once the transaction commits."></i>
+      <i class="dg-edge" data-from="api" data-to="pg" data-label="SQL" data-tip="One transaction: INSERT order, INSERT outbox, DELETE outbox, COMMIT."></i>
+      <i class="dg-edge dashed" data-from="pg" data-to="connect" data-label="WAL" data-tip="Logical replication through slot debezium_orders, plugin pgoutput."></i>
+      <i class="dg-edge" data-from="connect" data-to="topic" data-label="publish" data-tip="Key = order ID. Value = the event envelope (D5)."></i>
+      <i class="dg-edge dashed" data-from="topic" data-to="shipping"></i>
+      <i class="dg-edge dashed" data-from="topic" data-to="billing"></i>
+    </div>
+    <figcaption>Requests stop at PostgreSQL; everything to the right of it is asynchronous. If Debezium or Kafka is down, checkout still works and events wait in the WAL.</figcaption>
+  </figure>
+  <ol class="walkthrough" data-for="fig-architecture">
+    <li data-hl="checkout>api">Checkout sends <code>POST /orders</code> to Orders API.</li>
+    <li data-hl="api>pg">Orders API inserts the order and its event, deletes the event row, and commits, all in one transaction.</li>
+    <li data-hl="pg>connect">Debezium reads the outbox insert from the <a class="term" href="#term-wal">WAL</a>, even though the row is already gone from the table.</li>
+    <li data-hl="connect>topic">Debezium publishes the event to <code>orders.events.v1</code> with the order ID as the key.</li>
+    <li data-hl="topic>billing topic>shipping">Billing and Shipping consume the event and skip IDs they have already processed.</li>
+  </ol>
+
+  <h3 id="how-commit">The order and its event commit together</h3>
+  <p><a class="id" href="#d1">D1</a> The outbox table holds the event in the shape it will have in Kafka. Debezium needs only the insert, which is already in the WAL when the transaction commits, so Orders API deletes the row in the same transaction and the table stays empty.</p>
+  <figure class="code">
+    <figcaption>db/migration/V42__outbox.sql</figcaption>
+<pre><code class="language-sql">CREATE TABLE outbox (
+  id             uuid        PRIMARY KEY,   -- becomes event_id
+  aggregate_type text        NOT NULL,      -- 'order': picks the topic
+  aggregate_id   text        NOT NULL,      -- order ID: becomes the Kafka key
+  type           text        NOT NULL,      -- 'OrderPlaced'
+  payload        jsonb       NOT NULL,      -- the full event, see "Event format"
+  created_at     timestamptz NOT NULL DEFAULT now()
+);</code></pre>
+  </figure>
+  <figure class="code">
+    <figcaption>OrderService.java</figcaption>
+<pre><code class="language-java">@Transactional
+public Order placeOrder(PlaceOrder command) {
+    Order order = orders.save(Order.from(command));
+    OutboxEvent event = OutboxEvent.orderPlaced(order);
+    outbox.save(event);
+    outbox.delete(event); // the insert is already in the WAL; the table stays empty
+    return order;
+}</code></pre>
+  </figure>
+  <p>If anything in <code>placeOrder</code> throws, the transaction rolls back and the WAL never contains a committed insert, so no event is published.</p>
+
+  <h3 id="how-capture">Debezium copies events from the WAL</h3>
+  <p><a class="id" href="#d2">D2</a> The connector reads the <code>outbox</code> table through <a class="term" href="#term-logical-replication">logical replication</a> and keeps its position in the <a class="term" href="#term-slot">replication slot</a> <code>debezium_orders</code>. The outbox event router turns each insert into a Kafka record and ignores the deletes.</p>
+  <figure class="code">
+    <figcaption>orders-outbox connector (credentials omitted)</figcaption>
+<pre><code class="language-json">{
+  "name": "orders-outbox",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.hostname": "orders-db.internal.example.com",
+    "database.dbname": "orders",
+    "plugin.name": "pgoutput",
+    "slot.name": "debezium_orders",
+    "table.include.list": "public.outbox",
+    "tombstones.on.delete": "false",
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+    "transforms.outbox.route.by.field": "aggregate_type",
+    "transforms.outbox.route.topic.replacement": "orders.events.v1",
+    "transforms.outbox.table.field.event.key": "aggregate_id"
+  }
+}</code></pre>
+  </figure>
+  <aside class="callout warning">
+    <p class="callout-title">Turning on logical replication reboots the database</p>
+    <p>RDS applies <code>rds.logical_replication = 1</code> only after a reboot. On staging the Multi-AZ failover rejected writes for 95 s. The reboot is step 1 of the <a href="#rollout">rollout</a> and waits for <a class="id" href="#q3">Q3</a>.</p>
+  </aside>
+
+  <h3 id="how-topic">One topic, keyed by order ID</h3>
+  <p><a class="id" href="#d3">D3</a> Kafka keeps records with the same key in one partition, in the order they were written. Keying by order ID means a future <code>OrderCancelled</code> can never overtake its <code>OrderPlaced</code>.</p>
+  <table>
+    <thead><tr><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><code>partitions</code></td><td>12</td><td>4× the largest consumer group (3 pods), room to scale without repartitioning.</td></tr>
+      <tr><td><code>replication.factor</code></td><td>3</td><td>MSK default; survives one broker loss.</td></tr>
+      <tr><td><code>min.insync.replicas</code></td><td>2</td><td>A publish succeeds only when two brokers have it.</td></tr>
+      <tr><td><code>retention.ms</code></td><td>604800000 (7 days)</td><td>Covers the 7-day shadow run and a long weekend of consumer downtime.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="how-format">Event format</h3>
+  <p><a class="id" href="#d5">D5</a> The envelope fields are the same for every event type. Consumers read <code>event_type</code> and <code>schema_version</code> to decide how to parse <code>payload</code>.</p>
+  <figure class="code">
+    <figcaption>OrderPlaced, schema_version 1</figcaption>
+<pre><code class="language-json">{
+  "event_id": "5f0c7a52-3d1e-4b8e-9a51-0e6f2c9b1d47",
+  "event_type": "OrderPlaced",
+  "schema_version": 1,
+  "occurred_at": "2026-11-03T10:02:13.412Z",
+  "order_id": "84121",
+  "payload": {
+    "customer_id": "c-2291",
+    "currency": "EUR",
+    "total_cents": 4599,
+    "lines": [
+      { "sku": "MUG-01", "quantity": 2, "price_cents": 1800 },
+      { "sku": "TEA-12", "quantity": 1, "price_cents": 999 }
+    ]
+  }
+}</code></pre>
+  </figure>
+
+  <h3 id="how-duplicates">Duplicates and how consumers drop them</h3>
+  <p><a class="id" href="#d4">D4</a> Debezium saves its <a class="term" href="#term-lsn">LSN</a> after it publishes. If it stops between the two, it publishes the same event again when it restarts:</p>
+  <figure class="mmd" id="fig-duplicates">
+<pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant PG as PostgreSQL WAL
+  participant DBZ as Debezium
+  participant K as orders.events.v1
+  participant B as Billing
+  PG->>DBZ: outbox insert at LSN 0/1A2B
+  DBZ->>K: publish event 5f0c…
+  Note over DBZ: stops before saving LSN 0/1A2B
+  DBZ->>PG: restart from the last saved LSN
+  PG->>DBZ: the same insert again
+  DBZ->>K: publish event 5f0c… again
+  K->>B: event 5f0c…
+  K->>B: event 5f0c… (duplicate)
+  Note over B: second INSERT finds the ID: skip
+</pre>
+    <figcaption>A restart between steps 2 and 3 publishes event 5f0c… twice. Billing processes it once because it records every event ID it has handled.</figcaption>
+  </figure>
+  <p>Each consumer is an <a class="term" href="#term-idempotent">idempotent consumer</a>: it records the event ID in the same transaction as its own side effect.</p>
+  <figure class="code">
+    <figcaption>Billing: before creating the invoice</figcaption>
+<pre><code class="language-sql">INSERT INTO processed_events (event_id)
+VALUES ('5f0c7a52-3d1e-4b8e-9a51-0e6f2c9b1d47')
+ON CONFLICT (event_id) DO NOTHING;
+-- 0 rows inserted: already processed, so skip the invoice</code></pre>
+  </figure>
+  <p>Shipping does not do this yet; see <a class="id" href="#g1">G1</a>.</p>
+</section>
+
+<section id="tradeoffs">
+  <h2>Strengths and weaknesses</h2>
+  <div class="panels">
+    <div class="panel good">
+      <h3>Strengths</h3>
+      <ul>
+        <li>An event exists if and only if its order committed: no lost events and no events for rolled-back orders (<a class="id" href="#d1">D1</a>).</li>
+        <li>Orders API never calls Kafka, so a Kafka outage neither fails nor slows checkout (<a class="id" href="#f3">F3</a>).</li>
+        <li>No polling: zero extra queries on the orders database, and 380 ms p99 from commit to topic on staging (<a class="id" href="#d2">D2</a>).</li>
+        <li>The events of one order arrive in order, because they share a key (<a class="id" href="#d3">D3</a>).</li>
+        <li>The outbox table stays empty, so there is no cleanup job and no table bloat.</li>
+      </ul>
+    </div>
+    <div class="panel warn">
+      <h3>Weaknesses</h3>
+      <ul>
+        <li>Kafka Connect is a new deployment to run, upgrade and watch (<a class="id" href="#q1">Q1</a>).</li>
+        <li>While the connector is stopped, PostgreSQL keeps the WAL. At 50 GB it drops the slot and the unpublished events are lost (<a class="id" href="#f2">F2</a>, <a class="id" href="#g3">G3</a>).</li>
+        <li>Duplicates are normal after connector restarts, so every consumer must drop them (<a class="id" href="#d4">D4</a>, <a class="id" href="#g1">G1</a>).</li>
+        <li>Turning on logical replication needs a database reboot: 95 s of rejected writes on staging.</li>
+        <li>Pending events are not visible in SQL, because the rows are deleted at once. You read the topic instead (<a href="#runbook">runbook</a>).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="alternatives">
+  <h2>Alternatives</h2>
+  <p>Two of the decisions had realistic alternatives. Each table compares them on the goals from the <a href="#problem">Problem</a>.</p>
+
+  <h3 id="alt-consistency">How the event and the order stay consistent</h3>
+  <table>
+    <thead><tr><th>Criterion</th><th class="chosen">Outbox (<a class="id" href="#d1">D1</a>)</th><th>Dual write with retries (<a class="id" href="#a1">A1</a>)</th><th>Listen to yourself (<a class="id" href="#a2">A2</a>)</th></tr></thead>
+    <tbody>
+      <tr><th>No lost events</th><td class="yes chosen">Commits with the order</td><td class="no">Lost if the pod dies before the retry</td><td class="yes">Kafka is the source of truth</td></tr>
+      <tr><th>No events for rolled-back orders</th><td class="yes chosen">Rolls back with the order</td><td class="yes">Publishes after the commit</td><td class="yes">No database transaction</td></tr>
+      <tr><th>Change to Orders API</th><td class="partial chosen">One extra insert and delete</td><td class="yes">A retry loop</td><td class="no">Rewrite: state comes from our own events</td></tr>
+      <tr><th>Checkout works while Kafka is down</th><td class="yes chosen">Events wait in the WAL</td><td class="no">Blocks for 30 s, then loses the event</td><td class="no">Nothing can be saved</td></tr>
+    </tbody>
+  </table>
+  <div class="items">
+    <article class="item" id="a1">
+      <div class="item-head"><span class="id">A1</span><h3>Dual write with retries</h3><span class="chip">Rejected</span></div>
+      <p>Keep today's flow and retry the publish 5 times with backoff.</p>
+      <dl class="facts">
+        <dt>Why not</dt><dd>It shrinks the gap but keeps it: a pod restart between the commit and a successful retry still loses the event.</dd>
+        <dt>Better if</dt><dd>A lost event were cheap to fix, for example a cache refresh that the next event repairs.</dd>
+      </dl>
+    </article>
+    <article class="item" id="a2">
+      <div class="item-head"><span class="id">A2</span><h3>Listen to yourself</h3><span class="chip">Rejected</span></div>
+      <p>Orders API publishes the event first and builds the <code>orders</code> table by consuming its own topic.</p>
+      <dl class="facts">
+        <dt>Why not</dt><dd>It rewrites how Orders API stores state, and a new order is not readable until the API consumes its own event, which breaks the checkout confirmation page.</dd>
+        <dt>Better if</dt><dd>We were building the service from scratch around events.</dd>
+      </dl>
+    </article>
+  </div>
+
+  <h3 id="alt-capture">How events leave the database</h3>
+  <table>
+    <thead><tr><th>Criterion</th><th class="chosen">Debezium (<a class="id" href="#d2">D2</a>)</th><th>Polling publisher (<a class="id" href="#a3">A3</a>)</th></tr></thead>
+    <tbody>
+      <tr><th>Latency, p99</th><td class="yes chosen">380 ms on staging</td><td class="partial">Poll interval plus query: 1–5 s</td></tr>
+      <tr><th>Load on the orders database</th><td class="yes chosen">Reads the WAL, no queries</td><td class="no">One query per second per replica</td></tr>
+      <tr><th>New infrastructure</th><td class="no chosen">Kafka Connect</td><td class="yes">None: runs inside Orders API</td></tr>
+      <tr><th>Order per order ID with 3 replicas</th><td class="yes chosen">One reader of the WAL</td><td class="partial">Needs row locks or a single leader</td></tr>
+    </tbody>
+  </table>
+  <div class="items">
+    <article class="item" id="a3">
+      <div class="item-head"><span class="id">A3</span><h3>Polling publisher</h3><span class="chip">Rejected in v0.2</span></div>
+      <p>A scheduled job in Orders API selects unpublished outbox rows every second, publishes them, and marks them as sent.</p>
+      <dl class="facts">
+        <dt>Why not</dt><dd>It misses the 2 s goal at peak, adds constant load to the orders database, and needs locking to keep the order of events across 3 replicas.</dd>
+        <dt>Better if</dt><dd>No Kafka Connect were available, or the service published fewer than about 100 events per hour.</dd>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<section id="operations">
+  <h2>Operations and failures</h2>
+  <div class="stats">
+    <div class="stat"><b>&lt; 2 s</b><span>Goal: commit to topic, p99</span></div>
+    <div class="stat"><b>380 ms</b><span>Measured on staging, p99</span></div>
+    <div class="stat"><b>8 GB / h</b><span>WAL written at peak</span></div>
+    <div class="stat"><b>≈ 6 h</b><span>Connector downtime before the slot reaches 50 GB (<a class="id" href="#f2">F2</a>)</span></div>
+  </div>
+
+  <h3 id="failure-map">Where things fail</h3>
+  <figure class="dg" id="fig-failures" data-legend="none">
+    <div class="dg-canvas" style="--dg-cols: 5; --dg-min: 130px; --dg-col-gap: 56px">
+      <div class="dg-node changed" data-id="api" style="--r: 1; --c: 1"><strong>Orders API</strong></div>
+      <div class="dg-node" data-id="pg" style="--r: 1; --c: 2" data-refs="F2"><strong>PostgreSQL</strong><span>slot <code>debezium_orders</code></span></div>
+      <div class="dg-node new" data-id="connect" style="--r: 1; --c: 3" data-refs="F1 F5"><strong>Debezium</strong></div>
+      <div class="dg-node resource" data-id="topic" style="--r: 1; --c: 4" data-refs="F3"><strong>orders.events.v1</strong></div>
+      <div class="dg-node" data-id="consumers" style="--r: 1; --c: 5" data-refs="F4"><strong>Consumers</strong><span>Billing, Shipping</span></div>
+      <i class="dg-edge" data-from="api" data-to="pg"></i>
+      <i class="dg-edge dashed" data-from="pg" data-to="connect"></i>
+      <i class="dg-edge" data-from="connect" data-to="topic"></i>
+      <i class="dg-edge dashed" data-from="topic" data-to="consumers"></i>
+    </div>
+    <figcaption>Each badge marks where a failure starts. Hover it for a summary or click it for the row below. None of them stops checkout.</figcaption>
+  </figure>
+
+  <h3 id="failure-modes">Failure modes</h3>
+  <table>
+    <thead><tr><th>ID</th><th>Failure</th><th>What users see</th><th>How we detect it</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr id="f1"><td><span class="id">F1</span></td><td><strong>Connector stops</strong></td><td>Invoices and shipments are late. Orders still succeed, and the WAL grows (<a class="id" href="#f2">F2</a>).</td><td>Task state is not <code>RUNNING</code> for 2 min, or commit-to-topic lag &gt; 60 s.</td><td>Restart the task (<a href="#runbook">runbook</a>). If it fails again on the same event, check its logs for a bad payload.</td></tr>
+      <tr id="f2"><td><span class="id">F2</span></td><td><strong>Slot holds too much WAL</strong></td><td>Nothing until 50 GB. Then PostgreSQL drops the slot, and every unpublished event is lost (<a class="id" href="#g3">G3</a>).</td><td>Retained WAL &gt; 20 GB warns, &gt; 35 GB pages.</td><td>Fix the cause, usually <a class="id" href="#f1">F1</a> or <a class="id" href="#f3">F3</a>.</td></tr>
+      <tr id="f3"><td><span class="id">F3</span></td><td><strong>Kafka unavailable</strong></td><td>Events are late. Orders still succeed, and the connector retries.</td><td>MSK broker alarms; connector errors in its logs.</td><td>Platform on-call fixes MSK. Orders on-call watches retained WAL (<a class="id" href="#f2">F2</a>).</td></tr>
+      <tr id="f4"><td><span class="id">F4</span></td><td><strong>A consumer can't process an event</strong></td><td>That consumer stops at that event; the other one continues.</td><td>Consumer lag alert; dead-letter topic count &gt; 0.</td><td>After 3 retries the consumer moves the event to its dead-letter topic. Fix the consumer, then replay it.</td></tr>
+      <tr id="f5"><td><span class="id">F5</span></td><td><strong>Duplicate events</strong></td><td>Nothing, when the consumer drops them (<a class="id" href="#d4">D4</a>). Two shipments for one order in Shipping until <a class="id" href="#g1">G1</a> is fixed.</td><td>Dropped-duplicate count per consumer.</td><td>Expected after a connector restart. Investigate a spike that has no restart.</td></tr>
+    </tbody>
+  </table>
+  <aside class="callout danger">
+    <p class="callout-title">Never drop the replication slot by hand</p>
+    <p>Dropping <code>debezium_orders</code> to free disk space throws away every event the connector has not published yet, and there is no way to rebuild them until <a class="id" href="#g3">G3</a> is fixed.</p>
+  </aside>
+
+  <h3 id="monitoring">Monitoring</h3>
+  <table>
+    <thead><tr><th>Signal</th><th>Normal</th><th>Alert when</th></tr></thead>
+    <tbody>
+      <tr><td>Commit-to-topic lag, p99</td><td>&lt; 500 ms</td><td>&gt; 60 s for 5 min</td></tr>
+      <tr><td>Retained WAL for <code>debezium_orders</code></td><td>&lt; 1 GB</td><td>&gt; 20 GB warns, &gt; 35 GB pages</td></tr>
+      <tr><td>Connector task state</td><td><code>RUNNING</code></td><td>Anything else for 2 min</td></tr>
+      <tr><td>Dropped duplicates per consumer</td><td>&lt; 10 per hour</td><td>&gt; 500 per hour without a connector restart</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="rollout">Rollout and rollback</h3>
+  <p><a class="id" href="#d6">D6</a> The old producer keeps publishing to <code>orders</code> until consumers have run on the new topic for 14 days, so every step before the last one can be undone.</p>
+  <div class="tabs">
+    <div data-tab="During the shadow run (steps 2–4)">
+      <figure class="dg" id="fig-shadow">
+        <div class="dg-canvas" style="--dg-cols: 3">
+          <div class="dg-node changed" data-id="api" style="--r: 1; --c: 1"><strong>Orders API</strong><span>outbox flag on</span></div>
+          <div class="dg-node" data-id="old" style="--r: 1; --c: 2"><strong>orders</strong><span>old topic</span></div>
+          <div class="dg-node" data-id="consumers" style="--r: 1; --c: 3"><strong>Billing, Shipping</strong><span>still on the old topic</span></div>
+          <div class="dg-node" data-id="pg" style="--r: 2; --c: 1"><strong>PostgreSQL</strong></div>
+          <div class="dg-node new" data-id="connect" style="--r: 2; --c: 2"><strong>Debezium</strong></div>
+          <div class="dg-node resource" data-id="topic" style="--r: 2; --c: 3"><strong>orders.events.v1</strong><span>no consumers yet</span></div>
+          <i class="dg-edge" data-from="api" data-to="old" data-label="publish"></i>
+          <i class="dg-edge dashed" data-from="old" data-to="consumers"></i>
+          <i class="dg-edge" data-from="api" data-to="pg" data-label="SQL"></i>
+          <i class="dg-edge dashed" data-from="pg" data-to="connect" data-label="WAL"></i>
+          <i class="dg-edge" data-from="connect" data-to="topic" data-label="publish"></i>
+          <i class="dg-edge dashed" data-from="topic" data-to="old" data-label="daily comparison" data-tip="A job compares the event IDs of the last 24 hours in both topics and alerts on any ID missing from orders.events.v1."></i>
+        </div>
+        <figcaption>Both paths run at once. Consumers see no change, and the comparison proves the new path before anyone depends on it.</figcaption>
+      </figure>
+    </div>
+    <div data-tab="After the cut-over (step 6)">
+      <figure class="dg" id="fig-cutover">
+        <div class="dg-canvas" style="--dg-cols: 3">
+          <div class="dg-node changed" data-id="api" style="--r: 1; --c: 1"><strong>Orders API</strong><span>producer removed</span></div>
+          <div class="dg-node removed" data-id="old" style="--r: 1; --c: 2"><strong>orders</strong><span>old topic, deleted</span></div>
+          <div class="dg-node" data-id="consumers" style="--r: 1; --c: 3"><strong>Billing, Shipping</strong></div>
+          <div class="dg-node" data-id="pg" style="--r: 2; --c: 1"><strong>PostgreSQL</strong></div>
+          <div class="dg-node new" data-id="connect" style="--r: 2; --c: 2"><strong>Debezium</strong></div>
+          <div class="dg-node resource" data-id="topic" style="--r: 2; --c: 3"><strong>orders.events.v1</strong></div>
+          <i class="dg-edge" data-from="api" data-to="pg" data-label="SQL"></i>
+          <i class="dg-edge dashed" data-from="pg" data-to="connect" data-label="WAL"></i>
+          <i class="dg-edge" data-from="connect" data-to="topic" data-label="publish"></i>
+          <i class="dg-edge dashed" data-from="topic" data-to="consumers" data-label="consume"></i>
+        </div>
+        <figcaption>The final state matches the <a href="#fig-architecture">architecture diagram</a>.</figcaption>
+      </figure>
+    </div>
+  </div>
+  <ol>
+    <li>Set <code>rds.logical_replication = 1</code> and <code>max_slot_wal_keep_size = 51200</code> (50 GB) in the parameter group, and reboot in the maintenance window (<a class="id" href="#q3">Q3</a>).</li>
+    <li>Deploy Orders API with <code>orders.outbox.enabled=true</code>. The old producer keeps publishing to <code>orders</code>.</li>
+    <li>Create the <code>orders-outbox</code> connector. Events start to flow to <code>orders.events.v1</code>.</li>
+    <li>Shadow run: the daily comparison must find 0 missing events for 7 days in a row.</li>
+    <li>Move Billing to <code>orders.events.v1</code>, then Shipping once <a class="id" href="#g1">G1</a> is fixed.</li>
+    <li>After 14 days on the new topic, remove the old producer and delete the <code>orders</code> topic.</li>
+  </ol>
+  <aside class="callout warning">
+    <p class="callout-title">Rollback</p>
+    <p>Before step 5, turn the flag off and delete the connector; nothing downstream has changed. During step 5, point the consumer back at <code>orders</code> and reset its offset to the switch time. After step 6 there is no rollback, only fixes forward.</p>
+  </aside>
+
+  <h3 id="runbook">Runbook</h3>
+  <p>Check the connector, and restart its task when it is <code>FAILED</code>:</p>
+<pre><code class="language-bash">curl -s https://connect.internal.example.com/connectors/orders-outbox/status | jq '.tasks[].state'
+curl -s -X POST https://connect.internal.example.com/connectors/orders-outbox/tasks/0/restart</code></pre>
+  <p>See how much WAL the slot is holding:</p>
+<pre><code class="language-sql">SELECT slot_name, active,
+       pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)) AS retained_wal
+FROM pg_replication_slots
+WHERE slot_name = 'debezium_orders';</code></pre>
+  <p>Read the last 5 events of each partition, since pending events are not in the outbox table:</p>
+<pre><code class="language-bash">kcat -b kafka.internal.example.com:9092 -t orders.events.v1 -C -o -5 -e -f 'key=%k %s\n'</code></pre>
+</section>
+
+<section id="gaps">
+  <h2>Known gaps</h2>
+  <p>Problems this design does not solve yet. Each one has a proposed fix and an owner.</p>
+  <div class="items">
+    <article class="item" id="g1">
+      <div class="item-head"><span class="id">G1</span><h3>Shipping does not drop duplicates</h3><span class="chip bad">Blocks step 5</span></div>
+      <p>Shipping creates one shipment per <code>OrderPlaced</code> it reads. After a connector restart (<a class="id" href="#f5">F5</a>), order 84121 would ship twice.</p>
+      <dl class="facts">
+        <dt>Options</dt><dd>A <code>processed_events</code> table, as in Billing; or a unique constraint on <code>shipments(order_id)</code>.</dd>
+        <dt>Proposal</dt><dd>The unique constraint: one order has one shipment, and the constraint also protects against bugs outside this design.</dd>
+        <dt>Owner</dt><dd>Luis Ortega (Shipping)</dd>
+      </dl>
+    </article>
+    <article class="item" id="g2">
+      <div class="item-head"><span class="id">G2</span><h3>Nothing checks event schema changes</h3><span class="chip warn">Before a third consumer</span></div>
+      <p>Renaming <code>total_cents</code> to <code>total</code> passes every Orders API test and breaks Billing in production.</p>
+      <dl class="facts">
+        <dt>Options</dt><dd>JSON Schema files in the repository with a compatibility check in CI; or Avro with a schema registry (<a class="id" href="#p2">P2</a>).</dd>
+        <dt>Proposal</dt><dd>JSON Schema in CI now. It needs no new infrastructure and keeps <a class="id" href="#d5">D5</a>.</dd>
+        <dt>Owner</dt><dd>Ana Ruiz (Orders)</dd>
+      </dl>
+    </article>
+    <article class="item" id="g3">
+      <div class="item-head"><span class="id">G3</span><h3>No way to rebuild events after the slot is dropped</h3><span class="chip warn">Before step 6</span></div>
+      <p>If <a class="id" href="#f2">F2</a> reaches 50 GB, the events in that window are gone: the outbox rows were deleted, and the old producer is the only other copy until step 6.</p>
+      <dl class="facts">
+        <dt>Options</dt><dd>Keep outbox rows for 7 days and delete them with a job; or derive <code>event_id</code> from the order ID and event type, and rebuild missing events from the <code>orders</code> table with a backfill script.</dd>
+        <dt>Proposal</dt><dd>The backfill script with derived IDs: consumers drop any event that was not lost, so it is safe to over-publish. This changes how <a class="id" href="#d5">D5</a> creates <code>event_id</code>.</dd>
+        <dt>Owner</dt><dd>Ana Ruiz (Orders)</dd>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<section id="questions">
+  <h2>Open questions</h2>
+  <div class="items">
+    <article class="item" id="q1">
+      <div class="item-head"><span class="id">Q1</span><h3>Who runs Kafka Connect?</h3><span class="chip bad">Blocking</span></div>
+      <p>If Platform runs it, the connector goes into their shared Connect cluster and their on-call handles <a class="id" href="#f1">F1</a>. If Orders runs it, we add a deployment and a runbook, and Orders on-call takes F1.</p>
+      <dl class="facts">
+        <dt>Who can answer</dt><dd>Marta Gil (Platform)</dd>
+        <dt>Needed by</dt><dd>2026-11-20</dd>
+      </dl>
+    </article>
+    <article class="item" id="q2">
+      <div class="item-head"><span class="id">Q2</span><h3>Is 2 s p99 fast enough for Shipping?</h3><span class="chip">Not blocking</span></div>
+      <p>The warehouse cut-off is at 14:00. If Shipping needs events in under 500 ms, the 380 ms staging result is close to the limit, and we would load-test at peak before step 5.</p>
+      <dl class="facts">
+        <dt>Who can answer</dt><dd>Luis Ortega (Shipping)</dd>
+        <dt>Needed by</dt><dd>2026-11-27</dd>
+      </dl>
+    </article>
+    <article class="item" id="q3">
+      <div class="item-head"><span class="id">Q3</span><h3>Can the database reboot use the 2026-11-24 maintenance window?</h3><span class="chip bad">Blocking</span></div>
+      <p>The reboot rejects writes for about 95 s. The next window after that is 2026-12-08, which is too close to the holiday peak.</p>
+      <dl class="facts">
+        <dt>Who can answer</dt><dd>Database team</dd>
+        <dt>Needed by</dt><dd>2026-11-18</dd>
+      </dl>
+    </article>
+  </div>
+</section>
+
+<section id="parking-lot">
+  <h2>Parking lot</h2>
+  <p>Good ideas that are out of scope now, with the event that should bring each one back.</p>
+  <div class="items">
+    <article class="item" id="p1">
+      <div class="item-head"><span class="id">P1</span><h3>Payment and refund events through the same outbox</h3></div>
+      <p>The same table and connector could carry them with a different <code>aggregate_type</code>.</p>
+      <dl class="facts"><dt>Revisit when</dt><dd>Orders has run 30 days on the outbox without an F1 or F2 page.</dd></dl>
+    </article>
+    <article class="item" id="p2">
+      <div class="item-head"><span class="id">P2</span><h3>Avro and a schema registry</h3></div>
+      <p>Smaller events and compatibility checks at publish time, instead of in CI.</p>
+      <dl class="facts"><dt>Revisit when</dt><dd>A team outside Orders, Billing and Shipping consumes the events.</dd></dl>
+    </article>
+    <article class="item" id="p3">
+      <div class="item-head"><span class="id">P3</span><h3>Webhooks for partners</h3></div>
+      <p>A small service could forward selected events from <code>orders.events.v1</code> to partner endpoints.</p>
+      <dl class="facts"><dt>Revisit when</dt><dd>The partner API project starts.</dd></dl>
+    </article>
+  </div>
+</section>
+
+<section id="glossary">
+  <h2>Glossary</h2>
+  <dl class="glossary">
+    <dt id="term-cdc">CDC</dt><dd>Change data capture: reading a database's changes from its log as a stream, instead of querying its tables.</dd>
+    <dt id="term-dual-write">Dual write</dt><dd>Writing the same fact to two systems in two separate steps, such as a database commit followed by a Kafka publish. If the second step fails, the two systems disagree.</dd>
+    <dt id="term-idempotent">Idempotent consumer</dt><dd>A consumer that gives the same result when it processes the same event twice, usually by remembering the event IDs it has handled.</dd>
+    <dt id="term-logical-replication">Logical replication</dt><dd>PostgreSQL's way of streaming row changes from the WAL to an outside reader. Debezium uses it with the <code>pgoutput</code> plugin, which is how it does <a class="term" href="#term-cdc">CDC</a>.</dd>
+    <dt id="term-lsn">LSN</dt><dd>Log sequence number: a position in the WAL, such as <code>0/1A2B</code>. Debezium saves the last LSN it published and resumes from there.</dd>
+    <dt id="term-outbox">Outbox</dt><dd>A table where a service writes events in the same transaction as its data, so the events commit or roll back together with it.</dd>
+    <dt id="term-slot">Replication slot</dt><dd>A named position in PostgreSQL that keeps WAL until its reader confirms it. Ours is <code>debezium_orders</code>.</dd>
+    <dt id="term-wal">WAL</dt><dd>Write-ahead log: PostgreSQL's record of every change, written before the change reaches the tables.</dd>
+  </dl>
+</section>
+
+<section id="references">
+  <h2>References</h2>
+  <ul class="refs">
+    <li><a href="https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html">Debezium: Outbox event router</a><span>Every routing and field option of the connector config in <a href="#how-capture">Debezium copies events from the WAL</a>.</span></li>
+    <li><a href="https://microservices.io/patterns/data/transactional-outbox.html">microservices.io: Transactional outbox</a><span>The pattern behind D1, with its variants.</span></li>
+    <li><a href="https://www.postgresql.org/docs/15/runtime-config-replication.html">PostgreSQL 15: Replication settings</a><span>How <code>max_slot_wal_keep_size</code> limits retained WAL and what happens when a slot passes it.</span></li>
+    <li><a href="https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/PostgreSQL.Concepts.General.FeatureSupport.LogicalReplication.html">Amazon RDS: Logical replication for PostgreSQL</a><span>The parameter group change and reboot in rollout step 1.</span></li>
+  </ul>
+</section>
+
+<section id="history">
+  <h2>Document history</h2>
+  <table>
+    <thead><tr><th>Version</th><th>Date</th><th>Status</th><th>Author</th><th>Changes</th></tr></thead>
+    <tbody>
+      <tr><td>0.3</td><td>2026-11-06</td><td>In review</td><td>Ana Ruiz</td><td>Added <a class="id" href="#d6">D6</a> and <a class="id" href="#g3">G3</a> after the review with Platform. <a class="id" href="#f2">F2</a> now caps retained WAL at 50 GB.</td></tr>
+      <tr><td>0.2</td><td>2026-10-30</td><td>Draft</td><td>Ana Ruiz</td><td>Replaced the polling publisher, now <a class="id" href="#a3">A3</a>, with Debezium after the staging test.</td></tr>
+      <tr><td>0.1</td><td>2026-10-23</td><td>Draft</td><td>Ana Ruiz</td><td>First draft.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- CONTENT END -->
+</main>
+<script id="dd-script">
+/* architecture-design template 1.0. Do not edit: check_doc.py --sync restores this block. */
+(function () {
+  'use strict';
+  var HLJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/';
+  var HLJS_EXTRA = ['properties', 'protobuf', 'dockerfile'];
+  var MERMAID = 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js';
+  var SVG = 'http://www.w3.org/2000/svg';
+  var KINDS = ['new', 'changed', 'existing', 'external', 'resource', 'removed'];
+  var KIND_LABELS = { new: 'New', changed: 'Changed', existing: 'Existing', external: 'External', resource: 'Config or resource', removed: 'Removed' };
+  var root = document.documentElement;
+
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === 'class') e.className = attrs[k];
+      else if (k === 'text') e.textContent = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (k) { e.append(k); });
+    return e;
+  }
+  function svgEl(tag, attrs) {
+    var e = document.createElementNS(SVG, tag);
+    Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    return e;
+  }
+  function store(k, v) {
+    try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; }
+  }
+  function cssVar(n) { return getComputedStyle(root).getPropertyValue(n).trim(); }
+  function loadScript(src) {
+    return new Promise(function (resolve, reject) {
+      var s = el('script', { src: src });
+      s.onload = resolve; s.onerror = reject;
+      document.head.append(s);
+    });
+  }
+  function words(s) { return (s || '').split(/\s+/).filter(Boolean); }
+  function clip(text, n) { text = (text || '').replace(/\s+/g, ' ').trim(); return text.length > n ? text.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : text; }
+
+  /* Theme */
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  function applyTheme(pref) {
+    var dark = pref === 'dark' || (pref === 'auto' && mq.matches);
+    root.setAttribute('data-theme', dark ? 'dark' : 'light');
+    root.setAttribute('data-theme-pref', pref);
+    document.dispatchEvent(new Event('dd-theme'));
+  }
+  mq.addEventListener('change', function () { if ((root.getAttribute('data-theme-pref') || 'auto') === 'auto') applyTheme('auto'); });
+
+  /* Table of contents */
+  function buildToc() {
+    var h1 = $('.dd-header h1');
+    var title = h1 ? h1.textContent.trim() : document.title;
+    var toc = el('nav', { class: 'dd-toc', id: 'dd-toc', 'aria-label': 'Contents' });
+    var head = el('div', { class: 'dd-toc-head' });
+    var eyebrow = $('.dd-header .eyebrow');
+    head.append(el('p', { class: 'eyebrow', text: eyebrow ? eyebrow.textContent : 'Design document' }));
+    head.append(el('a', { class: 'dd-toc-title', href: '#top', text: title }));
+    var meta = el('div', { class: 'dd-toc-meta' });
+    var status = $('.dd-header [data-status]');
+    var version = $('.dd-header [data-version]');
+    if (status) meta.append(status.cloneNode(true));
+    if (version) meta.append(el('a', { class: 'dd-ver', href: '#history', text: 'v' + version.textContent.trim() }));
+    head.append(meta);
+    toc.append(head);
+
+    var list = el('ol', { class: 'dd-toc-list' });
+    $$('main > section[id]').forEach(function (s) {
+      var h2 = $(':scope > h2', s);
+      if (!h2) return;
+      var li = el('li');
+      var a = el('a', { href: '#' + s.id, 'data-target': s.id }, [el('span', { text: s.getAttribute('data-toc') || h2.textContent.trim() })]);
+      var n = $$('.item[id], .card[id]', s).length;
+      if (n) a.append(el('span', { class: 'dd-count', text: String(n) }));
+      li.append(a);
+      var subs = $$('h3[id]', s).filter(function (h) { return !h.closest('.item, .card, .panel, .tabs'); });
+      if (subs.length) {
+        var ol = el('ol');
+        subs.forEach(function (h) {
+          ol.append(el('li', {}, [el('a', { href: '#' + h.id, 'data-target': h.id, text: h.getAttribute('data-toc') || h.textContent.trim() })]));
+        });
+        li.append(ol);
+      }
+      list.append(li);
+    });
+    toc.append(list);
+
+    var foot = el('div', { class: 'dd-toc-foot' });
+    var themeBtn = el('button', { type: 'button', class: 'dd-btn' });
+    var order = ['auto', 'light', 'dark'];
+    function label() { themeBtn.textContent = 'Theme: ' + (root.getAttribute('data-theme-pref') || 'auto'); }
+    themeBtn.addEventListener('click', function () {
+      var next = order[(order.indexOf(root.getAttribute('data-theme-pref') || 'auto') + 1) % order.length];
+      store('dd-theme', next);
+      applyTheme(next);
+      label();
+    });
+    label();
+    foot.append(themeBtn);
+    toc.append(foot);
+
+    var bar = el('div', { class: 'dd-topbar' });
+    var menu = el('button', { type: 'button', class: 'dd-btn', 'aria-controls': 'dd-toc', 'aria-expanded': 'false', text: '☰ Contents' });
+    menu.addEventListener('click', function () {
+      var open = toc.classList.toggle('open');
+      menu.setAttribute('aria-expanded', String(open));
+    });
+    toc.addEventListener('click', function (e) {
+      if (e.target.closest('a')) { toc.classList.remove('open'); menu.setAttribute('aria-expanded', 'false'); }
+    });
+    bar.append(menu, el('span', { class: 'dd-topbar-title', text: title }));
+    document.body.prepend(toc);
+    document.body.prepend(bar);
+
+    var links = $$('a[data-target]', toc).map(function (a) { return [a, document.getElementById(a.getAttribute('data-target'))]; }).filter(function (p) { return p[1]; });
+    var ticking = false;
+    function spy() {
+      ticking = false;
+      var offset = window.innerWidth <= 1000 ? 90 : 40;
+      var current = null;
+      links.forEach(function (p) { if (p[1].getBoundingClientRect().top - offset <= 1) current = p[0]; });
+      if (!current && links.length) current = links[0][0];
+      links.forEach(function (p) { p[0].classList.toggle('active', p[0] === current); });
+      if (current) {
+        var lr = current.getBoundingClientRect();
+        var box = list.getBoundingClientRect();
+        if (lr.top < box.top + 8) list.scrollTop -= box.top + 8 - lr.top;
+        else if (lr.bottom > box.bottom - 8) list.scrollTop += lr.bottom - box.bottom + 8;
+      }
+    }
+    window.addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(spy); } }, { passive: true });
+    spy();
+  }
+
+  /* IDs, anchors, tables */
+  function decorate() {
+    $$('.id').forEach(function (e) {
+      var k = (e.textContent.trim()[0] || '').toLowerCase();
+      if (k) e.classList.add('k-' + k);
+    });
+    $$('main > section[id] > h2').forEach(function (h) {
+      h.append(el('a', { class: 'anchor', href: '#' + h.parentElement.id, 'aria-label': 'Link to this section', text: '#' }));
+    });
+    $$('main h3[id]').forEach(function (h) {
+      if (!h.closest('.item, .card, .panel')) h.append(el('a', { class: 'anchor', href: '#' + h.id, 'aria-label': 'Link to this section', text: '#' }));
+    });
+    $$('main table').forEach(function (t) {
+      if (!t.parentElement.classList.contains('table-wrap')) {
+        var w = el('div', { class: 'table-wrap' });
+        t.before(w); w.append(t);
+      }
+    });
+  }
+
+  /* Tooltips: data-tip, plus automatic ones for links to items, cards, table rows and glossary terms */
+  function crossRefs() {
+    $$('a[href^="#"]').forEach(function (a) {
+      if (a.hasAttribute('data-tip') || a.hasAttribute('data-tip-title') || a.closest('.dd-toc')) return;
+      var id = decodeURIComponent(a.getAttribute('href').slice(1));
+      var t = id && document.getElementById(id);
+      if (!t || t.contains(a)) return;
+      var title = '', body = '';
+      if (t.tagName === 'DT') {
+        title = t.textContent.trim();
+        body = t.nextElementSibling ? t.nextElementSibling.textContent : '';
+      } else if (t.matches('.item, .card')) {
+        var idc = $('.id', t), h = $('h3, h4', t), p = $(':scope > p:not(.more)', t);
+        title = [idc && idc.textContent.trim(), h && h.textContent.replace(/#$/, '').trim()].filter(Boolean).join(' · ');
+        body = p ? p.textContent : '';
+      } else if (t.tagName === 'TR') {
+        var cells = $$(':scope > td, :scope > th', t);
+        var idCell = $('.id', t);
+        var rest = cells.filter(function (c) { return !c.querySelector('.id'); });
+        title = [idCell && idCell.textContent.trim(), t.getAttribute('data-title') || (rest[0] && rest[0].textContent.trim())].filter(Boolean).join(' · ');
+        body = t.getAttribute('data-summary') || (rest[1] ? rest[1].textContent : '');
+      } else return;
+      if (title) a.setAttribute('data-tip-title', clip(title, 120));
+      if (body) a.setAttribute('data-tip', clip(body, 240));
+    });
+  }
+
+  function tooltips() {
+    var tip = el('div', { class: 'dd-tip', role: 'tooltip' });
+    document.body.append(tip);
+    var owner = null;
+    function show(t, ev) {
+      var title = t.getAttribute('data-tip-title'), body = t.getAttribute('data-tip');
+      if (!title && !body) return;
+      tip.replaceChildren();
+      if (title) tip.append(el('strong', { text: title }));
+      if (body) tip.append(el('span', { text: body }));
+      owner = t;
+      var r = t.getBoundingClientRect();
+      var x = r.left + r.width / 2, top = r.top, bottom = r.bottom;
+      if (t instanceof SVGElement && ev && ev.clientX !== undefined) { x = ev.clientX; top = ev.clientY - 8; bottom = ev.clientY + 8; }
+      tip.style.left = '0px'; tip.style.top = '0px';
+      tip.classList.add('show');
+      var w = tip.offsetWidth, h = tip.offsetHeight;
+      var left = Math.max(8, Math.min(window.innerWidth - w - 8, x - w / 2));
+      var y = top - h - 10;
+      if (y < 8) y = bottom + 10;
+      tip.style.left = left + 'px';
+      tip.style.top = y + 'px';
+    }
+    function hide() { owner = null; tip.classList.remove('show'); }
+    var SEL = '[data-tip], [data-tip-title]';
+    document.addEventListener('pointerover', function (e) {
+      var t = e.target.closest && e.target.closest(SEL);
+      if (t && t !== owner && e.pointerType !== 'touch') show(t, e);
+    });
+    document.addEventListener('pointerout', function (e) {
+      var t = e.target.closest && e.target.closest(SEL);
+      if (t && t === owner && !(e.relatedTarget && t.contains(e.relatedTarget))) hide();
+    });
+    document.addEventListener('focusin', function (e) { var t = e.target.closest && e.target.closest(SEL); if (t) show(t); });
+    document.addEventListener('focusout', hide);
+    document.addEventListener('click', function (e) {
+      var t = e.target.closest && e.target.closest(SEL);
+      if (t && !t.closest('a') && t !== owner) { show(t, e); return; }
+      if (!t) hide();
+    });
+    window.addEventListener('scroll', hide, { passive: true });
+    $$('.dg-node[data-tip], .dg-label[data-tip]').forEach(function (n) { n.tabIndex = 0; });
+  }
+
+  /* Box diagrams */
+  function rectOf(n) { return { x: n.offsetLeft, y: n.offsetTop, w: n.offsetWidth, h: n.offsetHeight }; }
+  function union(a, b) {
+    if (!a) return { x: b.x, y: b.y, w: b.w, h: b.h };
+    var x = Math.min(a.x, b.x), y = Math.min(a.y, b.y);
+    return { x: x, y: y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
+  }
+  function edgeOf(r, from, to) {
+    var dx = to.x - from.x, dy = to.y - from.y;
+    var tx = dx ? (r.w / 2) / Math.abs(dx) : Infinity, ty = dy ? (r.h / 2) / Math.abs(dy) : Infinity;
+    var t = Math.min(tx, ty);
+    return [from.x + dx * t, from.y + dy * t];
+  }
+  function route(a, b, e) {
+    var ac = { x: a.x + a.w / 2, y: a.y + a.h / 2 }, bc = { x: b.x + b.w / 2, y: b.y + b.h / 2 };
+    var off = e.offset;
+    if (e.route === 'elbow') {
+      var y1 = ac.y + off, x1 = bc.x + off;
+      return [[bc.x > ac.x ? a.x + a.w : a.x, y1], [x1, y1], [x1, bc.y > ac.y ? b.y : b.y + b.h]];
+    }
+    if (e.route === 'elbow-v') {
+      var x2 = ac.x + off, y2 = bc.y + off;
+      return [[x2, bc.y > ac.y ? a.y + a.h : a.y], [x2, y2], [bc.x > ac.x ? b.x : b.x + b.w, y2]];
+    }
+    if (e.route !== 'straight') {
+      var ox1 = Math.max(a.x, b.x), ox2 = Math.min(a.x + a.w, b.x + b.w);
+      var oy1 = Math.max(a.y, b.y), oy2 = Math.min(a.y + a.h, b.y + b.h);
+      if (ox2 - ox1 >= 18) {
+        var x = (ox1 + ox2) / 2 + off;
+        return bc.y > ac.y ? [[x, a.y + a.h], [x, b.y]] : [[x, a.y], [x, b.y + b.h]];
+      }
+      if (oy2 - oy1 >= 18) {
+        var y = (oy1 + oy2) / 2 + off;
+        return bc.x > ac.x ? [[a.x + a.w, y], [b.x, y]] : [[a.x, y], [b.x + b.w, y]];
+      }
+    }
+    var p1 = edgeOf(a, ac, bc), p2 = edgeOf(b, bc, ac);
+    if (off) {
+      var dx = p2[0] - p1[0], dy = p2[1] - p1[1], L = Math.hypot(dx, dy) || 1;
+      var nx = -dy / L * off, ny = dx / L * off;
+      p1 = [p1[0] + nx, p1[1] + ny]; p2 = [p2[0] + nx, p2[1] + ny];
+    }
+    return [p1, p2];
+  }
+  function labelSpot(pts, at) {
+    var best = 0, len = -1;
+    for (var i = 0; i < pts.length - 1; i++) {
+      var l = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+      if (l > len) { len = l; best = i; }
+    }
+    var a = pts[best], b = pts[best + 1];
+    var kind = 'd';
+    if (at !== 'center') kind = Math.abs(a[1] - b[1]) < 1 ? 'h' : Math.abs(a[0] - b[0]) < 1 ? 'v' : 'd';
+    return { x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, kind: kind };
+  }
+
+  function initDiagram(fig, idx) {
+    var canvas = $(':scope .dg-canvas', fig);
+    if (!canvas) return;
+    if (!canvas.parentElement.classList.contains('dg-scroll')) {
+      var scroll = el('div', { class: 'dg-scroll' });
+      canvas.before(scroll); scroll.append(canvas);
+    }
+    var nodes = {};
+    $$(':scope > .dg-node', canvas).forEach(function (n) {
+      var id = n.getAttribute('data-id');
+      if (!id) return;
+      nodes[id] = n;
+      var refs = words(n.getAttribute('data-refs'));
+      if (refs.length) {
+        var box = el('span', { class: 'dg-refs' });
+        refs.forEach(function (r) {
+          box.append(el('a', { class: 'id k-' + r[0].toLowerCase(), href: '#' + r.toLowerCase(), text: r.toUpperCase() }));
+        });
+        n.append(box);
+      }
+    });
+    var edges = $$(':scope > .dg-edge', canvas).map(function (e) {
+      var d = {
+        from: e.getAttribute('data-from'), to: e.getAttribute('data-to'),
+        label: e.getAttribute('data-label') || '', tip: e.getAttribute('data-tip') || '',
+        dashed: e.classList.contains('dashed'), both: e.getAttribute('data-dir') === 'both',
+        route: e.getAttribute('data-route') || 'auto', offset: parseFloat(e.getAttribute('data-offset')) || 0,
+        at: e.getAttribute('data-label-at') || 'auto'
+      };
+      d.key = d.from + '>' + d.to;
+      if (d.label) {
+        d.lab = el('div', { class: 'dg-label', text: d.label });
+        if (d.tip) d.lab.setAttribute('data-tip', d.tip);
+        canvas.append(d.lab);
+      }
+      if (!nodes[d.from] || !nodes[d.to]) console.warn('Diagram edge with unknown node:', d.key);
+      return d;
+    });
+    var groups = $$(':scope > .dg-group', canvas).map(function (g) {
+      return { el: g, members: words(g.getAttribute('data-members')), plain: g.classList.contains('plain') };
+    }).sort(function (a, b) { return a.members.length - b.members.length; });
+    var svg = svgEl('svg', { class: 'dg-svg', 'aria-hidden': 'true' });
+    canvas.prepend(svg);
+    fig._dg = { nodes: nodes, edges: edges };
+
+    legend(fig, nodes, edges);
+
+    var drawing = false;
+    function draw() {
+      if (drawing || !canvas.offsetWidth) return;
+      drawing = true;
+      for (var pass = 0; pass < 3; pass++) { if (!layoutGroups()) break; }
+      drawEdges();
+      drawing = false;
+    }
+    function layoutGroups() {
+      var done = [];
+      groups.forEach(function (g) {
+        var box = null;
+        g.members.forEach(function (m) { if (nodes[m]) box = union(box, rectOf(nodes[m])); });
+        done.forEach(function (inner) {
+          if (inner.box && inner.members.length < g.members.length && inner.members.every(function (m) { return g.members.indexOf(m) >= 0; })) box = union(box, inner.box);
+        });
+        g.box = null;
+        if (!box) return;
+        var p = g.plain ? { t: 30, r: 0, b: 0, l: 0 } : { t: 42, r: 18, b: 18, l: 18 };
+        g.box = { x: box.x - p.l, y: box.y - p.t, w: box.w + p.l + p.r, h: box.h + p.t + p.b };
+        done.push(g);
+      });
+      var W = canvas.clientWidth, H = canvas.clientHeight, need = { t: 0, r: 0, b: 0, l: 0 };
+      groups.forEach(function (g) {
+        if (!g.box) return;
+        need.t = Math.max(need.t, 10 - g.box.y);
+        need.l = Math.max(need.l, 10 - g.box.x);
+        need.r = Math.max(need.r, g.box.x + g.box.w - (W - 10));
+        need.b = Math.max(need.b, g.box.y + g.box.h - (H - 10));
+      });
+      if (need.t > .5 || need.r > .5 || need.b > .5 || need.l > .5) {
+        var cs = getComputedStyle(canvas);
+        canvas.style.padding = [
+          parseFloat(cs.paddingTop) + Math.max(0, need.t), parseFloat(cs.paddingRight) + Math.max(0, need.r),
+          parseFloat(cs.paddingBottom) + Math.max(0, need.b), parseFloat(cs.paddingLeft) + Math.max(0, need.l)
+        ].map(function (v) { return Math.ceil(v) + 'px'; }).join(' ');
+        return true;
+      }
+      groups.forEach(function (g) {
+        g.el.style.display = g.box ? '' : 'none';
+        if (!g.box) return;
+        g.el.style.left = g.box.x + 'px'; g.el.style.top = g.box.y + 'px';
+        g.el.style.width = g.box.w + 'px'; g.el.style.height = g.box.h + 'px';
+      });
+      return false;
+    }
+    function drawEdges() {
+      svg.replaceChildren();
+      var defs = svgEl('defs');
+      [['a', 'mk'], ['h', 'mk-hl']].forEach(function (m) {
+        var mk = svgEl('marker', { id: 'dg' + idx + '-' + m[0], viewBox: '0 0 10 10', refX: '9.5', refY: '5', markerWidth: '6.5', markerHeight: '6.5', orient: 'auto-start-reverse' });
+        mk.append(svgEl('path', { d: 'M0,0 L10,5 L0,10 z', class: m[1] }));
+        defs.append(mk);
+      });
+      svg.append(defs);
+      edges.forEach(function (e) {
+        if (!nodes[e.from] || !nodes[e.to]) return;
+        var pts = route(rectOf(nodes[e.from]), rectOf(nodes[e.to]), e);
+        var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+        var path = svgEl('path', { d: d, class: 'edge' + (e.dashed ? ' dashed' : '') });
+        var hit = svgEl('path', { d: d, class: 'hit' });
+        if (e.tip) { hit.setAttribute('data-tip', e.tip); if (e.label) hit.setAttribute('data-tip-title', e.label); }
+        hit.addEventListener('pointerenter', function () { path.classList.add('hover'); setMarker(e); });
+        hit.addEventListener('pointerleave', function () { path.classList.remove('hover'); setMarker(e); });
+        e.path = path;
+        svg.append(path, hit);
+        setMarker(e);
+        if (e.lab) {
+          var s = labelSpot(pts, e.at);
+          e.lab.className = 'dg-label ' + s.kind + (e.lab.classList.contains('hl') ? ' hl' : '');
+          e.lab.style.left = s.x + 'px'; e.lab.style.top = s.y + 'px';
+        }
+      });
+    }
+    function setMarker(e) {
+      if (!e.path) return;
+      var on = e.path.classList.contains('hl') || e.path.classList.contains('hover');
+      var url = 'url(#dg' + idx + '-' + (on ? 'h' : 'a') + ')';
+      e.path.setAttribute('marker-end', url);
+      if (e.both) e.path.setAttribute('marker-start', url); else e.path.removeAttribute('marker-start');
+    }
+    fig._dg.setMarker = setMarker;
+
+    Object.keys(nodes).forEach(function (id) {
+      var n = nodes[id];
+      n.addEventListener('pointerenter', function () {
+        var keys = [id];
+        edges.forEach(function (e) { if (e.from === id || e.to === id) keys.push(e.key); });
+        highlight(fig, keys);
+      });
+      n.addEventListener('pointerleave', function () { highlight(fig, null); });
+    });
+
+    if (window.ResizeObserver) new ResizeObserver(function () { requestAnimationFrame(draw); }).observe(canvas);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+    draw();
+  }
+
+  function highlight(fig, keys) {
+    var dg = fig && fig._dg;
+    if (!dg) return;
+    var on = !!(keys && keys.length);
+    fig.classList.toggle('hl-active', on);
+    var ns = {}, es = {};
+    (keys || []).forEach(function (k) {
+      if (k.indexOf('>') >= 0) {
+        var p = k.split('>');
+        es[k] = true; es[p[1] + '>' + p[0]] = true; ns[p[0]] = true; ns[p[1]] = true;
+      } else ns[k] = true;
+    });
+    Object.keys(dg.nodes).forEach(function (id) { dg.nodes[id].classList.toggle('hl', on && !!ns[id]); });
+    dg.edges.forEach(function (e) {
+      var h = on && !!es[e.key];
+      if (e.path) e.path.classList.toggle('hl', h);
+      if (e.lab) e.lab.classList.toggle('hl', h);
+      dg.setMarker(e);
+    });
+  }
+
+  function legend(fig, nodes, edges) {
+    var spec = fig.getAttribute('data-legend') || '';
+    if (spec.trim() === 'none') return;
+    var over = {};
+    spec.split(';').forEach(function (pair) {
+      var i = pair.indexOf('=');
+      if (i > 0) over[pair.slice(0, i).trim()] = pair.slice(i + 1).trim();
+    });
+    var used = {};
+    Object.keys(nodes).forEach(function (id) {
+      var n = nodes[id], k = 'existing';
+      KINDS.forEach(function (kind) { if (n.classList.contains(kind)) k = kind; });
+      used[k] = true;
+    });
+    var lg = el('div', { class: 'dg-legend' });
+    KINDS.forEach(function (k) {
+      if (used[k]) lg.append(el('span', {}, [el('i', { class: 'lg-swatch ' + k }), over[k] || KIND_LABELS[k]]));
+    });
+    var solid = edges.some(function (e) { return !e.dashed; }), dashed = edges.some(function (e) { return e.dashed; });
+    if (dashed || over.solid) {
+      if (solid) lg.append(el('span', {}, [el('i', { class: 'lg-line' }), over.solid || 'Request or data flow']));
+      if (dashed) lg.append(el('span', {}, [el('i', { class: 'lg-line dashed' }), over.dashed || 'Async or control flow']));
+    }
+    var cap = $(':scope > figcaption', fig);
+    if (cap) cap.before(lg); else fig.append(lg);
+  }
+
+  function walkthroughs() {
+    $$('ol.walkthrough[data-for]').forEach(function (ol) {
+      var fig = document.getElementById(ol.getAttribute('data-for'));
+      if (!fig) return;
+      $$(':scope > li', ol).forEach(function (li) {
+        li.tabIndex = 0;
+        var keys = words(li.getAttribute('data-hl'));
+        function on() { highlight(fig, keys); }
+        function off() { highlight(fig, null); }
+        li.addEventListener('pointerenter', on);
+        li.addEventListener('pointerleave', off);
+        li.addEventListener('focus', on);
+        li.addEventListener('blur', off);
+      });
+    });
+  }
+
+  function tabs() {
+    $$('.tabs').forEach(function (t) {
+      var panes = $$(':scope > [data-tab]', t);
+      var bar = el('div', { class: 'tab-bar', role: 'tablist' });
+      var buttons = panes.map(function (p, i) {
+        var b = el('button', { type: 'button', role: 'tab', text: p.getAttribute('data-tab') });
+        b.addEventListener('click', function () { select(i); });
+        bar.append(b);
+        return b;
+      });
+      function select(i) {
+        panes.forEach(function (p, j) { p.hidden = i !== j; buttons[j].setAttribute('aria-selected', String(i === j)); });
+      }
+      t.prepend(bar);
+      select(0);
+    });
+  }
+
+  /* Code */
+  function code() {
+    var blocks = $$('pre > code');
+    blocks.forEach(function (c) {
+      var pre = c.parentElement;
+      var m = c.className.match(/language-([\w+#-]+)/);
+      if (m && m[1] !== 'text' && m[1] !== 'plaintext') pre.setAttribute('data-lang', m[1]);
+      var btn = el('button', { type: 'button', class: 'copy', text: 'Copy' });
+      btn.addEventListener('click', function () {
+        var done = function (ok) { btn.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(function () { btn.textContent = 'Copy'; }, 1400); };
+        try { navigator.clipboard.writeText(c.textContent).then(function () { done(true); }, function () { done(false); }); } catch (e) { done(false); }
+      });
+      pre.append(btn);
+    });
+    var langBlocks = blocks.filter(function (c) { return /language-/.test(c.className) && !/language-(text|plaintext)\b/.test(c.className); });
+    if (!langBlocks.length) return;
+    loadScript(HLJS_BASE + 'highlight.min.js')
+      .then(function () { return Promise.all(HLJS_EXTRA.map(function (l) { return loadScript(HLJS_BASE + 'languages/' + l + '.min.js').catch(function () {}); })); })
+      .then(function () {
+        window.hljs.configure({ ignoreUnescapedHTML: true });
+        langBlocks.forEach(function (c) { window.hljs.highlightElement(c); });
+      })
+      .catch(function () {});
+  }
+
+  /* Mermaid */
+  function mermaidDiagrams() {
+    var blocks = $$('pre.mermaid');
+    if (!blocks.length) return;
+    blocks.forEach(function (p) { p.setAttribute('data-src', p.textContent); });
+    function render() {
+      var v = cssVar;
+      window.mermaid.initialize({
+        startOnLoad: false, theme: 'base', securityLevel: 'strict', fontFamily: v('--font'),
+        themeVariables: {
+          fontFamily: v('--font'), fontSize: '15px', background: v('--surface'),
+          primaryColor: v('--blue-bg'), primaryBorderColor: v('--blue-bd'), primaryTextColor: v('--text'),
+          secondaryColor: v('--green-bg'), secondaryBorderColor: v('--green-bd'), secondaryTextColor: v('--text'),
+          tertiaryColor: v('--surface-2'), tertiaryBorderColor: v('--border-strong'), tertiaryTextColor: v('--text'),
+          mainBkg: v('--blue-bg'), nodeBorder: v('--blue-bd'), nodeTextColor: v('--text'), textColor: v('--text'),
+          lineColor: v('--edge'), clusterBkg: v('--surface-2'), clusterBorder: v('--border-strong'), titleColor: v('--text'),
+          edgeLabelBackground: v('--surface'),
+          actorBkg: v('--blue-bg'), actorBorder: v('--blue-bd'), actorTextColor: v('--text'), actorLineColor: v('--border-strong'),
+          signalColor: v('--text-2'), signalTextColor: v('--text'),
+          labelBoxBkgColor: v('--surface-2'), labelBoxBorderColor: v('--border-strong'), labelTextColor: v('--text'), loopTextColor: v('--text-2'),
+          noteBkgColor: v('--amber-bg'), noteBorderColor: v('--amber-bd'), noteTextColor: v('--text'),
+          activationBkgColor: v('--green-bg'), activationBorderColor: v('--green-bd'),
+          sequenceNumberColor: v('--surface')
+        },
+        sequence: { mirrorActors: false, useMaxWidth: true },
+        flowchart: { useMaxWidth: true }
+      });
+      blocks.forEach(function (p) { p.removeAttribute('data-processed'); p.textContent = p.getAttribute('data-src'); });
+      return window.mermaid.run({ nodes: blocks });
+    }
+    loadScript(MERMAID).then(function () {
+      render();
+      document.addEventListener('dd-theme', render);
+    }).catch(function () {
+      blocks.forEach(function (p) { p.classList.add('mermaid-offline'); });
+    });
+  }
+
+  /* Target highlight */
+  function flash() {
+    var id = decodeURIComponent(location.hash.slice(1));
+    var t = id && document.getElementById(id);
+    if (!t || !t.matches('.item, .card, tr, dt, figure')) return;
+    t.classList.remove('flash');
+    void t.offsetWidth;
+    t.classList.add('flash');
+  }
+
+  function init() {
+    buildToc();
+    decorate();
+    $$('figure.dg').forEach(initDiagram);
+    walkthroughs();
+    tabs();
+    crossRefs();
+    tooltips();
+    code();
+    mermaidDiagrams();
+    window.addEventListener('hashchange', flash);
+    flash();
+    var printPref = null;
+    window.addEventListener('beforeprint', function () { printPref = root.getAttribute('data-theme-pref') || 'auto'; applyTheme('light'); });
+    window.addEventListener('afterprint', function () { if (printPref) applyTheme(printPref); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+</body>
+</html>
